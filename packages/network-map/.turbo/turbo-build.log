@@ -1,0 +1,14 @@
+
+> @fsa/network-map@0.1.0 build C:\Users\alfre\OneDrive\Documents\Work\Fsa Platform\fsa-frontend\packages\network-map
+> tsc && vite build
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+[32m✓[39m 0 modules transformed.
+[31mx[39m Build failed in 33ms
+[31merror during build:
+[31mCould not resolve entry module "index.html".[31m
+    at getRollupError (file:///C:/Users/alfre/OneDrive/Documents/Work/Fsa%20Platform/fsa-frontend/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+    at error (file:///C:/Users/alfre/OneDrive/Documents/Work/Fsa%20Platform/fsa-frontend/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/parseAst.js:398:42)
+    at ModuleLoader.loadEntryModule (file:///C:/Users/alfre/OneDrive/Documents/Work/Fsa%20Platform/fsa-frontend/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:21731:20)
+    at async Promise.all (index 0)[39m
+ ELIFECYCLE  Command failed with exit code 1.

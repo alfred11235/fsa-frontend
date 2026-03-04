@@ -3,7 +3,7 @@ import Layout from './Layout';
 import { useAuth } from './AuthProvider';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import UsersPage from './pages/UserControlPage';
+import UserControlPage from './pages/UserControlPage';
 import ServiceOrdersPage from './pages/ServiceOrdersPage';
 import NetworkPage from './pages/NetworkPage';
 import MapPage from './pages/MapPage';
@@ -28,7 +28,7 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="user-control/*" element={<UsersPage />} />
+        <Route path="user-control/*" element={<UserControlPage />} />
         <Route path="service-orders/*" element={<ServiceOrdersPage />} />
         <Route path="network/*" element={<NetworkPage />} />
         <Route path="map/*" element={<MapPage />} />

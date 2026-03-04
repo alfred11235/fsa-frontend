@@ -1,0 +1,6 @@
+
+> @fsa/shell@0.1.0 build C:\Users\alfre\OneDrive\Documents\Work\Fsa Platform\fsa-frontend\packages\shell
+> tsc && vite build
+
+src/pages/UserControlPage.tsx(11,8): error TS2307: Cannot find module '@fsa/user-control' or its corresponding type declarations.
+ ELIFECYCLE  Command failed with exit code 2.
