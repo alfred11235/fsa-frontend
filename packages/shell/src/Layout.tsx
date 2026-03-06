@@ -75,6 +75,17 @@ export default function Layout() {
 
         {/* Footer */}
         <div className="border-t border-gray-200 p-2">
+          {!collapsed && user && (
+            <div className="mb-2 rounded-lg bg-gray-50 px-3 py-2">
+              <p className="truncate text-sm font-medium text-gray-900">{user.name}</p>
+              <p className="truncate text-xs text-gray-500">{user.email}</p>
+              {user.roleName && (
+                <span className="mt-1 inline-block rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
+                  {user.roleName}
+                </span>
+              )}
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
