@@ -23,6 +23,7 @@ import {
   MunicipalitiesPage,
   ProjectionsPage,
   SystemModulesPage,
+  SystemFlowsPage,
   HistoriesPage,
 } from '@fsa/user-control';
 
@@ -74,6 +75,7 @@ export default function App() {
 
         {/* Módulos de Sistema */}
         <Route path="modulos-de-sistema" element={<SystemModulesPage />} />
+        <Route path="fluxos-de-sistema" element={<SystemFlowsPage />} />
 
         {/* Auditoria */}
         <Route path="auditoria" element={<HistoriesPage />} />

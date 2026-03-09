@@ -23,6 +23,8 @@ import {
   LogOut,
   Menu,
   Projector,
+  Settings,
+  GitBranch,
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 
@@ -90,7 +92,15 @@ const nav: NavEntry[] = [
       { to: '/projecoes', icon: Projector, label: 'Projeções' },
     ],
   },
-  { to: '/modulos-de-sistema', icon: Cpu, label: 'Módulos de Sistema' },
+  {
+    key: 'modulos',
+    icon: Cpu,
+    label: 'Módulos de Sistema',
+    children: [
+      { to: '/modulos-de-sistema', icon: Settings, label: 'Configuração' },
+      { to: '/fluxos-de-sistema', icon: GitBranch, label: 'Fluxos de sistema' },
+    ],
+  },
   { to: '/auditoria', icon: ClipboardList, label: 'Auditoria' },
 ];
 

@@ -13,5 +13,6 @@ export { default as MunicipalitiesPage } from './pages/MunicipalitiesPage';
 export { default as PoliciesPage } from './pages/PoliciesPage';
 export { default as PolicyGroupsPage } from './pages/PolicyGroupsPage';
 export { default as SystemModulesPage } from './pages/SystemModulesPage';
+export { default as SystemFlowsPage } from './pages/SystemFlowsPage';
 export { default as ProjectionsPage } from './pages/ProjectionsPage';
 export { default as HistoriesPage } from './pages/HistoriesPage';
