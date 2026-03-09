@@ -31,13 +31,10 @@ export default function AccessControlPage() {
     setLoading(true);
     try {
       const res = await userControlApi.getRolePolicies(role.id);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rps: any[] = res.data ?? [];
-      console.log('[AccessControl] rolePolicies response:', JSON.stringify(rps.slice(0, 2)));
+      const rps: { policy?: { id: number } }[] = res.data ?? [];
       const checked = new Set<number>();
       rps.forEach((rp) => {
-        const policyId = rp.policy?.id ?? rp.policyId ?? rp.PolicyId;
-        if (policyId != null) checked.add(Number(policyId));
+        if (rp.policy?.id != null) checked.add(rp.policy.id);
       });
       setCheckedPolicies(checked);
 
