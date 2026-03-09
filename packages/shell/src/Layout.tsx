@@ -1,117 +1,241 @@
 import { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Building2,
+  Building,
+  Layers,
+  Handshake,
+  FileText,
   Users,
-  ClipboardList,
+  UserCog,
+  Shield,
+  Lock,
+  Key,
+  MapPin,
+  Globe,
   Map,
-  Network,
-  ChevronLeft,
+  Landmark,
+  Cpu,
+  ClipboardList,
+  ChevronDown,
   ChevronRight,
   LogOut,
-  Settings,
+  Menu,
+  Projector,
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 
-const navItems = [
+interface MenuItem {
+  to: string;
+  icon: React.ElementType;
+  label: string;
+}
+
+interface MenuGroup {
+  key: string;
+  icon: React.ElementType;
+  label: string;
+  children: MenuItem[];
+}
+
+type NavEntry = MenuItem | MenuGroup;
+
+function isGroup(entry: NavEntry): entry is MenuGroup {
+  return 'children' in entry;
+}
+
+const nav: NavEntry[] = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/user-control', icon: Users, label: 'User Control' },
-  { to: '/service-orders', icon: ClipboardList, label: 'Service Orders' },
-  { to: '/network', icon: Network, label: 'Topo Network' },
-  { to: '/map', icon: Map, label: 'Network Map' },
+  {
+    key: 'empresas',
+    icon: Building2,
+    label: 'Empresas',
+    children: [
+      { to: '/empresas', icon: Building, label: 'Empresas' },
+      { to: '/grupos-de-empresas', icon: Layers, label: 'Grupos de empresas' },
+      { to: '/tipos-de-empresas', icon: Building2, label: 'Tipos de empresas' },
+      { to: '/consorcios', icon: Handshake, label: 'Consórcios' },
+    ],
+  },
+  { to: '/contratos', icon: FileText, label: 'Contratos' },
+  {
+    key: 'usuarios',
+    icon: Users,
+    label: 'Gestão de Usuários',
+    children: [
+      { to: '/usuarios', icon: Users, label: 'Usuários' },
+      { to: '/grupos-de-usuarios', icon: UserCog, label: 'Grupos de usuários' },
+      { to: '/filiacoes', icon: Shield, label: 'Filiações' },
+    ],
+  },
+  {
+    key: 'seguranca',
+    icon: Lock,
+    label: 'Segurança',
+    children: [
+      { to: '/politicas', icon: Shield, label: 'Políticas' },
+      { to: '/grupos-de-politicas', icon: Layers, label: 'Grupos de políticas' },
+      { to: '/controle-de-acesso', icon: Key, label: 'Controle de acesso' },
+    ],
+  },
+  {
+    key: 'estados',
+    icon: MapPin,
+    label: 'Estados',
+    children: [
+      { to: '/estados', icon: Globe, label: 'Estados' },
+      { to: '/regioes', icon: Map, label: 'Regiões' },
+      { to: '/municipios', icon: Landmark, label: 'Municípios' },
+      { to: '/projecoes', icon: Projector, label: 'Projeções' },
+    ],
+  },
+  { to: '/modulos-de-sistema', icon: Cpu, label: 'Módulos de Sistema' },
+  { to: '/auditoria', icon: ClipboardList, label: 'Auditoria' },
 ];
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const isChildActive = (group: MenuGroup) =>
+    group.children.some((c) => location.pathname === c.to);
+
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Sidebar */}
-      <aside
-        className={`flex flex-col border-r border-gray-200 bg-white transition-all duration-300 ${
-          collapsed ? 'w-16' : 'w-64'
-        }`}
-      >
-        {/* Logo */}
-        <div className="flex h-14 items-center justify-between border-b border-gray-200 px-4">
-          {!collapsed && (
-            <span className="text-lg font-bold text-primary-700">FSA Platform</span>
-          )}
+    <div className="flex h-screen flex-col overflow-hidden bg-gray-100">
+      {/* Top Header - spans full width */}
+      <header className="flex h-11 shrink-0 items-center justify-between border-b border-gray-200 bg-[#1e293b] px-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            className="rounded p-1 text-gray-300 hover:bg-[#334155] hover:text-white"
           >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            <Menu size={18} />
           </button>
+          <span className="text-sm font-semibold text-white">FSA ManagementPlatform</span>
         </div>
+        <div className="flex items-center gap-4">
+          <select className="rounded border border-[#475569] bg-[#334155] px-2 py-1 text-xs text-gray-200 outline-none">
+            <option>Humanistic</option>
+            <option>Default</option>
+          </select>
+          <span className="text-xs text-gray-300">
+            Olá, {user?.name ?? 'Usuário'} ▾
+          </span>
+        </div>
+      </header>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-2 py-4">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`
+      {/* Body: sidebar + content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside
+          className={`flex flex-col bg-[#1e293b] transition-all duration-300 ${
+            collapsed ? 'w-[52px]' : 'w-60'
+          }`}
+        >
+          {/* Nav items */}
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
+            {nav.map((entry) => {
+              if (isGroup(entry)) {
+                const open = expandedGroups.has(entry.key);
+                const childActive = isChildActive(entry);
+                return (
+                  <div key={entry.key}>
+                    <button
+                      onClick={() => { if (!collapsed) toggleGroup(entry.key); }}
+                      className={`flex w-full items-center gap-3 px-3 py-2 text-[13px] font-medium transition-colors ${
+                        childActive
+                          ? 'bg-[#334155] text-white'
+                          : 'text-gray-300 hover:bg-[#334155] hover:text-white'
+                      }`}
+                    >
+                      <entry.icon size={18} className="shrink-0" />
+                      {!collapsed && (
+                        <>
+                          <span className="flex-1 truncate text-left">{entry.label}</span>
+                          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </>
+                      )}
+                    </button>
+                    {!collapsed && open && (
+                      <div className="bg-[#0f172a]">
+                        {entry.children.map((child) => (
+                          <NavLink
+                            key={child.to}
+                            to={child.to}
+                            className={({ isActive }) =>
+                              `flex items-center gap-3 py-2 pl-9 pr-3 text-[13px] transition-colors ${
+                                isActive
+                                  ? 'bg-[#334155] text-white font-medium'
+                                  : 'text-gray-400 hover:bg-[#1e293b] hover:text-white'
+                              }`
+                            }
+                          >
+                            <child.icon size={16} className="shrink-0" />
+                            <span className="truncate">{child.label}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
               }
+
+              return (
+                <NavLink
+                  key={entry.to}
+                  to={entry.to}
+                  end={entry.to === '/'}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 text-[13px] font-medium transition-colors ${
+                      isActive
+                        ? 'bg-[#334155] text-white'
+                        : 'text-gray-300 hover:bg-[#334155] hover:text-white'
+                    }`
+                  }
+                >
+                  <entry.icon size={18} className="shrink-0" />
+                  {!collapsed && <span className="truncate">{entry.label}</span>}
+                </NavLink>
+              );
+            })}
+          </nav>
+
+          {/* Logout */}
+          <div className="border-t border-[#334155] p-2">
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded px-3 py-2 text-[13px] font-medium text-gray-300 hover:bg-[#334155] hover:text-white"
             >
-              <item.icon size={20} />
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
-          ))}
-        </nav>
+              <LogOut size={18} className="shrink-0" />
+              {!collapsed && <span>Sair</span>}
+            </button>
+          </div>
+        </aside>
 
-        {/* Footer */}
-        <div className="border-t border-gray-200 p-2">
-          {!collapsed && user && (
-            <div className="mb-2 rounded-lg bg-gray-50 px-3 py-2">
-              <p className="truncate text-sm font-medium text-gray-900">{user.name}</p>
-              <p className="truncate text-xs text-gray-500">{user.email}</p>
-              {user.roleName && (
-                <span className="mt-1 inline-block rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
-                  {user.roleName}
-                </span>
-              )}
-            </div>
-          )}
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-          >
-            <LogOut size={20} />
-            {!collapsed && <span>Logout</span>}
-          </button>
+        {/* Main content */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <main className="flex-1 overflow-auto p-5">
+            <Outlet />
+          </main>
         </div>
-      </aside>
-
-      {/* Main */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
-          <h1 className="text-sm font-medium text-gray-500">
-            Welcome{user ? `, ${user.name}` : ''}
-          </h1>
-          <button className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-            <Settings size={18} />
-          </button>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-auto p-6">
-          <Outlet />
-        </main>
       </div>
     </div>
   );

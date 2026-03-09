@@ -1,23 +1,23 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
 import { DataTable, Button, Modal } from '@fsa/shared-ui';
-import { Plus, Pencil, Shield } from 'lucide-react';
+import { Plus, Pencil, Globe } from 'lucide-react';
 
-interface Role { id: number; code: string; description: string; isActive: boolean }
-const empty = { code: '', description: '', isActive: true };
+interface State { id: number; code: string; description: string; abbreviation: string; isActive: boolean; region?: { id: number } }
+const empty = { code: '', description: '', abbreviation: '', isActive: true };
 
-export default function RolesPage() {
-  const [data, setData] = useState<Role[]>([]);
+export default function StatesPage() {
+  const [data, setData] = useState<State[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Partial<Role>>(empty);
+  const [editing, setEditing] = useState<Partial<State>>(empty);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    userControlApi.getRoles({ page: 0, size: 100000, sort: 'id,asc' })
+    userControlApi.getStates({ page: 0, size: 100000, sort: 'id,asc' })
       .then((r) => { setData(r.data?.content ?? r.data ?? []); })
       .catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -25,13 +25,13 @@ export default function RolesPage() {
   useEffect(() => { load(); }, [load]);
 
   const openAdd = () => { setEditing({ ...empty }); setModalOpen(true); };
-  const openEdit = (item: Role) => { setEditing({ ...item }); setModalOpen(true); };
+  const openEdit = (item: State) => { setEditing({ ...item }); setModalOpen(true); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateRole(editing.id, editing);
-      else await userControlApi.createRole(editing);
+      if (editing.id) await userControlApi.updateState(editing.id, editing);
+      else await userControlApi.createState(editing);
       setModalOpen(false); load();
     } finally { setSaving(false); }
   };
@@ -43,29 +43,35 @@ export default function RolesPage() {
 
   return (
     <>
-      <DataTable title="Grupos de Usuários"
-        icon={<Shield size={20} className="text-primary-600" />}
+      <DataTable title="Estados"
+        icon={<Globe size={20} className="text-primary-600" />}
         columns={[
-          { key: 'code', header: 'Código', sortable: true, minWidth: '150px' },
-          { key: 'description', header: 'Descrição', sortable: true, minWidth: '200px' },
+          { key: 'code', header: 'Código', sortable: true, minWidth: '100px' },
+          { key: 'description', header: 'Nome', sortable: true, minWidth: '200px' },
+          { key: 'abbreviation', header: 'Sigla', sortable: true, minWidth: '80px' },
           { key: 'isActive', header: 'Ativo', sortable: true, minWidth: '80px', render: activeBadge },
         ]}
         data={data as unknown as Record<string, unknown>[]} loading={loading}
         page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize}
         onSearch={() => {}}
         headerActions={<Button size="sm" variant="success" onClick={openAdd}><Plus size={16} /> Novo</Button>}
-        rowActions={[{ icon: <Pencil size={14} />, label: 'Editar', variant: 'warning', onClick: (r) => openEdit(r as unknown as Role) }]}
+        rowActions={[{ icon: <Pencil size={14} />, label: 'Editar', variant: 'warning', onClick: (r) => openEdit(r as unknown as State) }]}
       />
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Editar Grupo de Usuário' : 'Novo Grupo de Usuário'}>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Editar Estado' : 'Novo Estado'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Código *</label>
-            <input required maxLength={100} value={editing.code ?? ''} onChange={(e) => setEditing({ ...editing, code: e.target.value })}
+            <input required maxLength={20} value={editing.code ?? ''} onChange={(e) => setEditing({ ...editing, code: e.target.value })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Descrição</label>
-            <input maxLength={200} value={editing.description ?? ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+            <label className="mb-1 block text-sm font-medium text-gray-700">Nome *</label>
+            <input required maxLength={200} value={editing.description ?? ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Sigla *</label>
+            <input required maxLength={5} value={editing.abbreviation ?? ''} onChange={(e) => setEditing({ ...editing, abbreviation: e.target.value })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700">

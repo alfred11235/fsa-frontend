@@ -1,23 +1,23 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
 import { DataTable, Button, Modal } from '@fsa/shared-ui';
-import { Plus, Pencil, Shield } from 'lucide-react';
+import { Plus, Pencil, Layers } from 'lucide-react';
 
-interface Role { id: number; code: string; description: string; isActive: boolean }
+interface PolicyGroup { id: number; code: string; description: string; isActive: boolean }
 const empty = { code: '', description: '', isActive: true };
 
-export default function RolesPage() {
-  const [data, setData] = useState<Role[]>([]);
+export default function PolicyGroupsPage() {
+  const [data, setData] = useState<PolicyGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Partial<Role>>(empty);
+  const [editing, setEditing] = useState<Partial<PolicyGroup>>(empty);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    userControlApi.getRoles({ page: 0, size: 100000, sort: 'id,asc' })
+    userControlApi.getPolicyGroupsPaged({ page: 0, size: 100000, sort: 'id,asc' })
       .then((r) => { setData(r.data?.content ?? r.data ?? []); })
       .catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -25,15 +25,16 @@ export default function RolesPage() {
   useEffect(() => { load(); }, [load]);
 
   const openAdd = () => { setEditing({ ...empty }); setModalOpen(true); };
-  const openEdit = (item: Role) => { setEditing({ ...item }); setModalOpen(true); };
+  const openEdit = (item: PolicyGroup) => { setEditing({ ...item }); setModalOpen(true); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateRole(editing.id, editing);
-      else await userControlApi.createRole(editing);
+      const payload = { code: editing.code, description: editing.description, isActive: editing.isActive };
+      if (editing.id) await userControlApi.updatePolicyGroup(editing.id, payload);
+      else await userControlApi.createPolicyGroup(payload);
       setModalOpen(false); load();
-    } finally { setSaving(false); }
+    } catch (err) { console.error('PolicyGroup save error', err); alert('Erro ao salvar grupo de política.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {
@@ -43,8 +44,8 @@ export default function RolesPage() {
 
   return (
     <>
-      <DataTable title="Grupos de Usuários"
-        icon={<Shield size={20} className="text-primary-600" />}
+      <DataTable title="Grupos de Políticas"
+        icon={<Layers size={20} className="text-primary-600" />}
         columns={[
           { key: 'code', header: 'Código', sortable: true, minWidth: '150px' },
           { key: 'description', header: 'Descrição', sortable: true, minWidth: '200px' },
@@ -54,9 +55,9 @@ export default function RolesPage() {
         page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize}
         onSearch={() => {}}
         headerActions={<Button size="sm" variant="success" onClick={openAdd}><Plus size={16} /> Novo</Button>}
-        rowActions={[{ icon: <Pencil size={14} />, label: 'Editar', variant: 'warning', onClick: (r) => openEdit(r as unknown as Role) }]}
+        rowActions={[{ icon: <Pencil size={14} />, label: 'Editar', variant: 'warning', onClick: (r) => openEdit(r as unknown as PolicyGroup) }]}
       />
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Editar Grupo de Usuário' : 'Novo Grupo de Usuário'}>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Editar Grupo de Política' : 'Novo Grupo de Política'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Código *</label>

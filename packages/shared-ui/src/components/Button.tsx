@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '../lib/utils';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -12,6 +12,7 @@ const variants: Record<string, string> = {
   outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 shadow-sm',
   ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
   danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
+  success: 'bg-green-600 text-white hover:bg-green-700 shadow-sm',
 };
 
 const sizes: Record<string, string> = {

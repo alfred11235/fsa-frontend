@@ -1,23 +1,23 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
 import { DataTable, Button, Modal } from '@fsa/shared-ui';
-import { Plus, Pencil, Shield } from 'lucide-react';
+import { Plus, Pencil, Cpu } from 'lucide-react';
 
-interface Role { id: number; code: string; description: string; isActive: boolean }
+interface SystemModule { id: number; code: string; description: string; isActive: boolean }
 const empty = { code: '', description: '', isActive: true };
 
-export default function RolesPage() {
-  const [data, setData] = useState<Role[]>([]);
+export default function SystemModulesPage() {
+  const [data, setData] = useState<SystemModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Partial<Role>>(empty);
+  const [editing, setEditing] = useState<Partial<SystemModule>>(empty);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    userControlApi.getRoles({ page: 0, size: 100000, sort: 'id,asc' })
+    userControlApi.getSystemModules({ page: 0, size: 100000, sort: 'id,asc' })
       .then((r) => { setData(r.data?.content ?? r.data ?? []); })
       .catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -25,13 +25,13 @@ export default function RolesPage() {
   useEffect(() => { load(); }, [load]);
 
   const openAdd = () => { setEditing({ ...empty }); setModalOpen(true); };
-  const openEdit = (item: Role) => { setEditing({ ...item }); setModalOpen(true); };
+  const openEdit = (item: SystemModule) => { setEditing({ ...item }); setModalOpen(true); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateRole(editing.id, editing);
-      else await userControlApi.createRole(editing);
+      if (editing.id) await userControlApi.updateSystemModule(editing.id, editing);
+      else await userControlApi.createSystemModule(editing);
       setModalOpen(false); load();
     } finally { setSaving(false); }
   };
@@ -43,8 +43,8 @@ export default function RolesPage() {
 
   return (
     <>
-      <DataTable title="Grupos de Usuários"
-        icon={<Shield size={20} className="text-primary-600" />}
+      <DataTable title="Módulos de Sistema"
+        icon={<Cpu size={20} className="text-primary-600" />}
         columns={[
           { key: 'code', header: 'Código', sortable: true, minWidth: '150px' },
           { key: 'description', header: 'Descrição', sortable: true, minWidth: '200px' },
@@ -54,9 +54,9 @@ export default function RolesPage() {
         page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize}
         onSearch={() => {}}
         headerActions={<Button size="sm" variant="success" onClick={openAdd}><Plus size={16} /> Novo</Button>}
-        rowActions={[{ icon: <Pencil size={14} />, label: 'Editar', variant: 'warning', onClick: (r) => openEdit(r as unknown as Role) }]}
+        rowActions={[{ icon: <Pencil size={14} />, label: 'Editar', variant: 'warning', onClick: (r) => openEdit(r as unknown as SystemModule) }]}
       />
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Editar Grupo de Usuário' : 'Novo Grupo de Usuário'}>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Editar Módulo' : 'Novo Módulo'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Código *</label>

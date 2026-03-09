@@ -83,10 +83,81 @@ export const userControlApi = {
   getSystemModules: (params?: Record<string, unknown>) =>
     apiClient.get('/system-modules', { params }),
 
+  // Roles CRUD
+  createRole: (data: Record<string, unknown>) =>
+    apiClient.post('/roles', data),
+  updateRole: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/roles/${id}`, data),
+
+  // Regions CRUD
+  createRegion: (data: Record<string, unknown>) =>
+    apiClient.post('/regions', data),
+  updateRegion: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/regions/${id}`, data),
+
+  // States CRUD
+  createState: (data: Record<string, unknown>) =>
+    apiClient.post('/states', data),
+  updateState: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/states/${id}`, data),
+
+  // Municipalities CRUD
+  createMunicipality: (data: Record<string, unknown>) =>
+    apiClient.post('/municipalities', data),
+  updateMunicipality: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/municipalities/${id}`, data),
+
+  // Policies
+  getPolicies: (params?: Record<string, unknown>) =>
+    apiClient.get('/policies', { params }),
+  createPolicy: (data: Record<string, unknown>) =>
+    apiClient.post('/policies', data),
+  updatePolicy: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/policies/${id}`, data),
+
+  // Policy Groups CRUD
+  getPolicyGroupsPaged: (params?: Record<string, unknown>) =>
+    apiClient.get('/policy-groups', { params }),
+  createPolicyGroup: (data: Record<string, unknown>) =>
+    apiClient.post('/policy-groups', data),
+  updatePolicyGroup: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/policy-groups/${id}`, data),
+
+  // System Modules CRUD
+  createSystemModule: (data: Record<string, unknown>) =>
+    apiClient.post('/system-modules', data),
+  updateSystemModule: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/system-modules/${id}`, data),
+
+  // Projections
+  getProjections: (params?: Record<string, unknown>) =>
+    apiClient.get('/projections', { params }),
+  createProjection: (data: Record<string, unknown>) =>
+    apiClient.post('/projections', data),
+  updateProjection: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/projections/${id}`, data),
+
+  // Municipality Data
+  getMunicipalityData: (params?: Record<string, unknown>) =>
+    apiClient.get('/municipality-data', { params }),
+  createMunicipalityData: (data: Record<string, unknown>) =>
+    apiClient.post('/municipality-data', data),
+  updateMunicipalityData: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/municipality-data/${id}`, data),
+
   // Access Control
   getPolicyGroups: () => apiClient.get('/access-control/policy-groups'),
   getRolePolicies: (roleId: number) =>
     apiClient.get(`/access-control/role-policies/${roleId}`),
   updateRolePolicies: (roleId: number, policyIds: number[]) =>
     apiClient.put(`/access-control/role-policies/${roleId}`, policyIds),
+
+  // Histories (Auditoria)
+  getHistories: (params?: Record<string, unknown>) =>
+    apiClient.get('/histories', { params }),
+  getHistory: (id: number) => apiClient.get(`/histories/${id}`),
+  getHistoriesByEntity: (entityType: string, entityId: number, params?: Record<string, unknown>) =>
+    apiClient.get('/histories/by-entity', { params: { entityType, entityId, ...params } }),
+  getHistoriesByUser: (userId: number, params?: Record<string, unknown>) =>
+    apiClient.get(`/histories/by-user/${userId}`, { params }),
 };

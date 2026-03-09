@@ -6,7 +6,6 @@ import { Save, Key } from 'lucide-react';
 interface Role { id: number; code: string; description: string }
 interface Policy { id: number; code: string; description: string; isActive: boolean }
 interface PolicyGroup { id: number; code: string; description: string; policies: Policy[] }
-interface RolePolicy { id: number; policyId: number; roleId: number; policy: Policy }
 
 export default function AccessControlPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -19,7 +18,7 @@ export default function AccessControlPage() {
 
   useEffect(() => {
     Promise.all([
-      userControlApi.getRoles({ size: 1000 }),
+      userControlApi.getRoles({ size: 100000 }),
       userControlApi.getPolicyGroups(),
     ]).then(([r, pg]) => {
       setRoles(r.data?.content ?? []);
@@ -32,17 +31,19 @@ export default function AccessControlPage() {
     setLoading(true);
     try {
       const res = await userControlApi.getRolePolicies(role.id);
-      const rps: RolePolicy[] = res.data ?? [];
-      const checked = new Set(rps.map((rp) => rp.policy?.id ?? rp.policyId));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rps: any[] = res.data ?? [];
+      console.log('[AccessControl] rolePolicies response:', JSON.stringify(rps.slice(0, 2)));
+      const checked = new Set<number>();
+      rps.forEach((rp) => {
+        const policyId = rp.policy?.id ?? rp.policyId ?? rp.PolicyId;
+        if (policyId != null) checked.add(Number(policyId));
+      });
       setCheckedPolicies(checked);
 
       const expanded = new Set<number>();
       policyGroups.forEach((pg) => {
-        const groupPolicies = pg.policies.map((p) => p.id);
-        const checkedInGroup = groupPolicies.filter((id) => checked.has(id));
-        if (checkedInGroup.length > 0 && checkedInGroup.length < groupPolicies.length) {
-          expanded.add(pg.id);
-        }
+        if (pg.policies.some((p) => checked.has(p.id))) expanded.add(pg.id);
       });
       setExpandedGroups(expanded);
     } finally { setLoading(false); }
@@ -77,10 +78,11 @@ export default function AccessControlPage() {
 
   const handleSave = async () => {
     if (!selectedRole) return;
-    if (!confirm('Are you sure you want to update the policies for this role?')) return;
+    if (!confirm('Tem certeza que deseja atualizar as políticas desta função?')) return;
     setSaving(true);
     try {
       await userControlApi.updateRolePolicies(selectedRole.id, Array.from(checkedPolicies));
+      await handleSelectRole(selectedRole);
     } finally { setSaving(false); }
   };
 
@@ -94,12 +96,12 @@ export default function AccessControlPage() {
     <div>
       <div className="mb-6 flex items-center gap-3">
         <Key size={24} className="text-primary-600" />
-        <h2 className="text-xl font-bold text-gray-900">Access Control</h2>
+        <h2 className="text-lg font-semibold text-gray-800">Controle de Acesso</h2>
       </div>
 
       <div className="mx-auto max-w-3xl space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Select Role</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Selecionar Função</label>
           <select
             value={selectedRole?.id ?? ''}
             onChange={(e) => {
@@ -109,7 +111,7 @@ export default function AccessControlPage() {
             }}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
           >
-            <option value="">Select a role...</option>
+            <option value="">Selecione uma função...</option>
             {roles.map((r) => <option key={r.id} value={r.id}>{r.description} ({r.code})</option>)}
           </select>
         </div>
@@ -117,7 +119,7 @@ export default function AccessControlPage() {
         {selectedRole && !loading && (
           <>
             <Button onClick={handleSave} disabled={saving} className="w-full">
-              <Save size={16} /> {saving ? 'Saving...' : 'Save'}
+              <Save size={16} /> {saving ? 'Salvando...' : 'Salvar'}
             </Button>
 
             <div className="rounded-lg border border-gray-200 bg-white" style={{ maxHeight: '70vh', overflow: 'auto' }}>

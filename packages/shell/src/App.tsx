@@ -3,10 +3,28 @@ import Layout from './Layout';
 import { useAuth } from './AuthProvider';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import UserControlPage from './pages/UserControlPage';
 import ServiceOrdersPage from './pages/ServiceOrdersPage';
 import NetworkPage from './pages/NetworkPage';
 import MapPage from './pages/MapPage';
+import {
+  CompaniesPage,
+  CompanyGroupsPage,
+  CompanyTypesPage,
+  ConsortiumsPage,
+  ContractsPage,
+  UsersPage,
+  MembershipsPage,
+  RolesPage,
+  PoliciesPage,
+  PolicyGroupsPage,
+  AccessControlPage,
+  StatesPage,
+  RegionsPage,
+  MunicipalitiesPage,
+  ProjectionsPage,
+  SystemModulesPage,
+  HistoriesPage,
+} from '@fsa/user-control';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -28,7 +46,39 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="user-control/*" element={<UserControlPage />} />
+
+        {/* Empresas */}
+        <Route path="empresas" element={<CompaniesPage />} />
+        <Route path="grupos-de-empresas" element={<CompanyGroupsPage />} />
+        <Route path="tipos-de-empresas" element={<CompanyTypesPage />} />
+        <Route path="consorcios" element={<ConsortiumsPage />} />
+
+        {/* Contratos */}
+        <Route path="contratos" element={<ContractsPage />} />
+
+        {/* Gestão de Usuários */}
+        <Route path="usuarios" element={<UsersPage />} />
+        <Route path="grupos-de-usuarios" element={<RolesPage />} />
+        <Route path="filiacoes" element={<MembershipsPage />} />
+
+        {/* Segurança */}
+        <Route path="politicas" element={<PoliciesPage />} />
+        <Route path="grupos-de-politicas" element={<PolicyGroupsPage />} />
+        <Route path="controle-de-acesso" element={<AccessControlPage />} />
+
+        {/* Estados */}
+        <Route path="estados" element={<StatesPage />} />
+        <Route path="regioes" element={<RegionsPage />} />
+        <Route path="municipios" element={<MunicipalitiesPage />} />
+        <Route path="projecoes" element={<ProjectionsPage />} />
+
+        {/* Módulos de Sistema */}
+        <Route path="modulos-de-sistema" element={<SystemModulesPage />} />
+
+        {/* Auditoria */}
+        <Route path="auditoria" element={<HistoriesPage />} />
+
+        {/* Other modules */}
         <Route path="service-orders/*" element={<ServiceOrdersPage />} />
         <Route path="network/*" element={<NetworkPage />} />
         <Route path="map/*" element={<MapPage />} />

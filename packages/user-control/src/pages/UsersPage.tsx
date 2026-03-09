@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
 import { DataTable, Button, Modal } from '@fsa/shared-ui';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, Users } from 'lucide-react';
 
 interface User {
   id: number;
@@ -20,8 +20,7 @@ export default function UsersPage() {
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown>>(emptyUser);
@@ -29,11 +28,11 @@ export default function UsersPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    userControlApi.getUsers({ page, size: pageSize, sort: 'id,asc' })
-      .then((r) => { setData(r.data?.content ?? []); setTotal(r.data?.totalElements ?? 0); })
+    userControlApi.getUsers({ page: 0, size: 100000, sort: 'id,asc' })
+      .then((r) => { setData(r.data?.content ?? []); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -60,14 +59,14 @@ export default function UsersPage() {
   };
 
   const columns = [
-    { key: 'firstName', header: 'First Name', sortable: true, minWidth: '120px' },
-    { key: 'lastName', header: 'Last Name', sortable: true, minWidth: '120px' },
+    { key: 'firstName', header: 'Nome', sortable: true, minWidth: '120px' },
+    { key: 'lastName', header: 'Sobrenome', sortable: true, minWidth: '120px' },
     { key: 'email', header: 'Email', sortable: true, minWidth: '120px' },
-    { key: 'company.name', header: 'Company', sortable: true, minWidth: '120px' },
-    { key: 'isActive', header: 'Active', sortable: true, minWidth: '100px',
+    { key: 'company.name', header: 'Empresa', sortable: true, minWidth: '120px' },
+    { key: 'isActive', header: 'Ativo', sortable: true, minWidth: '100px',
       render: (r: Record<string, unknown>) => {
         const active = r.isActive as boolean;
-        return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{active ? 'Active' : 'Inactive'}</span>;
+        return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{active ? 'Ativo' : 'Inativo'}</span>;
       },
     },
   ];
@@ -75,22 +74,23 @@ export default function UsersPage() {
   return (
     <>
       <DataTable
-        title="Users"
+        title="Usuários"
+        icon={<Users size={20} className="text-primary-600" />}
         columns={columns}
         data={data as unknown as Record<string, unknown>[]}
         loading={loading}
         page={page}
         pageSize={pageSize}
-        totalItems={total}
         onPageChange={setPage}
-        onSearch={() => load()}
-        headerActions={<Button size="sm" onClick={openAdd}><Plus size={16} /> Add User</Button>}
+        onPageSizeChange={setPageSize}
+        onSearch={() => {}}
+        headerActions={<Button size="sm" variant="success" onClick={openAdd}><Plus size={16} /> Novo</Button>}
         rowActions={[
-          { icon: <Pencil size={16} />, label: 'Edit', variant: 'warning' as const, onClick: (r) => openEdit(r as unknown as User) },
+          { icon: <Pencil size={14} />, label: 'Editar', variant: 'warning' as const, onClick: (r) => openEdit(r as unknown as User) },
         ]}
       />
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Edit User' : 'Add User'} className="max-w-lg">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Editar Usuário' : 'Novo Usuário'} className="max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -122,11 +122,11 @@ export default function UsersPage() {
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={(editing.isActive as boolean) ?? true} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
               className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-            Active
+            Ativo
           </label>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" type="button" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : editing.id ? 'Update' : 'Create'}</Button>
+            <Button variant="outline" type="button" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : editing.id ? 'Atualizar' : 'Criar'}</Button>
           </div>
         </form>
       </Modal>

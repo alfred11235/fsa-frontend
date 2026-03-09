@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
 import { DataTable, Button, Modal } from '@fsa/shared-ui';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, FileText } from 'lucide-react';
 
 interface Contract {
   id: number;
@@ -26,8 +26,7 @@ export default function ContractsPage() {
   const [data, setData] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Contract>>(empty);
@@ -38,11 +37,11 @@ export default function ContractsPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    userControlApi.getContracts({ page, size: pageSize, sort: 'id,asc' })
-      .then((r) => { setData(r.data?.content ?? []); setTotal(r.data?.totalElements ?? 0); })
+    userControlApi.getContracts({ page: 0, size: 100000, sort: 'id,asc' })
+      .then((r) => { setData(r.data?.content ?? []); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -78,19 +77,19 @@ export default function ContractsPage() {
   };
 
   const columns = [
-    { key: 'name', header: 'Name', sortable: true, minWidth: '120px' },
-    { key: 'company.name', header: 'Company', sortable: true, minWidth: '120px' },
-    { key: 'systemModule.description', header: 'System Module', sortable: true, minWidth: '120px' },
-    { key: 'startDate', header: 'Start Date', sortable: true, minWidth: '120px',
-      render: (r: Record<string, unknown>) => { const d = r.startDate as string; return d ? new Date(d).toLocaleDateString() : ''; },
+    { key: 'name', header: 'Nome', sortable: true, minWidth: '120px' },
+    { key: 'company.name', header: 'Empresa', sortable: true, minWidth: '120px' },
+    { key: 'systemModule.description', header: 'Módulo', sortable: true, minWidth: '120px' },
+    { key: 'startDate', header: 'Início', sortable: true, minWidth: '120px',
+      render: (r: Record<string, unknown>) => { const d = r.startDate as string; return d ? new Date(d).toLocaleDateString('pt-BR') : ''; },
     },
-    { key: 'endDate', header: 'End Date', sortable: true, minWidth: '120px',
-      render: (r: Record<string, unknown>) => { const d = r.endDate as string; return d ? new Date(d).toLocaleDateString() : ''; },
+    { key: 'endDate', header: 'Fim', sortable: true, minWidth: '120px',
+      render: (r: Record<string, unknown>) => { const d = r.endDate as string; return d ? new Date(d).toLocaleDateString('pt-BR') : ''; },
     },
-    { key: 'isActive', header: 'Active', sortable: true, minWidth: '100px',
+    { key: 'isActive', header: 'Ativo', sortable: true, minWidth: '100px',
       render: (r: Record<string, unknown>) => {
         const active = r.isActive as boolean;
-        return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{active ? 'Active' : 'Inactive'}</span>;
+        return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{active ? 'Ativo' : 'Inativo'}</span>;
       },
     },
   ];
@@ -98,22 +97,23 @@ export default function ContractsPage() {
   return (
     <>
       <DataTable
-        title="Contracts"
+        title="Contratos"
+        icon={<FileText size={20} className="text-primary-600" />}
         columns={columns}
         data={data as unknown as Record<string, unknown>[]}
         loading={loading}
         page={page}
         pageSize={pageSize}
-        totalItems={total}
         onPageChange={setPage}
-        onSearch={() => load()}
-        headerActions={<Button size="sm" onClick={openAdd}><Plus size={16} /> Add Contract</Button>}
+        onPageSizeChange={setPageSize}
+        onSearch={() => {}}
+        headerActions={<Button size="sm" variant="success" onClick={openAdd}><Plus size={16} /> Novo</Button>}
         rowActions={[
-          { icon: <Pencil size={16} />, label: 'Edit', variant: 'warning' as const, onClick: (r) => openEdit(r as unknown as Contract) },
+          { icon: <Pencil size={14} />, label: 'Editar', variant: 'warning' as const, onClick: (r) => openEdit(r as unknown as Contract) },
         ]}
       />
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Edit Contract' : 'Add Contract'} className="max-w-xl">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing.id ? 'Editar Contrato' : 'Novo Contrato'} className="max-w-xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Name *</label>
@@ -168,11 +168,11 @@ export default function ContractsPage() {
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={editing.isActive ?? true} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
               className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-            Active
+            Ativo
           </label>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" type="button" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : editing.id ? 'Update' : 'Create'}</Button>
+            <Button variant="outline" type="button" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : editing.id ? 'Atualizar' : 'Criar'}</Button>
           </div>
         </form>
       </Modal>
