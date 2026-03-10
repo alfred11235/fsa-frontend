@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { Button } from '@fsa/shared-ui';
+import { Button, useToast } from '@fsa/shared-ui';
 import { Save, Key } from 'lucide-react';
 
 interface Role { id: number; code: string; description: string }
@@ -14,6 +14,7 @@ export default function AccessControlPage() {
   const [checkedPolicies, setCheckedPolicies] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -80,7 +81,8 @@ export default function AccessControlPage() {
     try {
       await userControlApi.updateRolePolicies(selectedRole.id, Array.from(checkedPolicies));
       await handleSelectRole(selectedRole);
-    } finally { setSaving(false); }
+      toast.success('Políticas atualizadas com sucesso.');
+    } catch { toast.error('Erro ao salvar políticas.'); } finally { setSaving(false); }
   };
 
   const isGroupChecked = (pg: PolicyGroup) => pg.policies.length > 0 && pg.policies.every((p) => checkedPolicies.has(p.id));

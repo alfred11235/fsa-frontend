@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Cpu } from 'lucide-react';
 
 interface SystemModule { id: number; code: string; description: string; isActive: boolean }
@@ -14,6 +14,7 @@ export default function SystemModulesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<SystemModule>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -30,10 +31,10 @@ export default function SystemModulesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateSystemModule(editing.id, editing);
-      else await userControlApi.createSystemModule(editing);
+      if (editing.id) { await userControlApi.updateSystemModule(editing.id, editing); toast.success('Módulo atualizado com sucesso.'); }
+      else { await userControlApi.createSystemModule(editing); toast.success('Módulo criado com sucesso.'); }
       setModalOpen(false); load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar módulo.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {

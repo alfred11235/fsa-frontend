@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { Button, Modal } from '@fsa/shared-ui';
+import { Button, Modal, useToast } from '@fsa/shared-ui';
 import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react';
 import {
   ReactFlow,
@@ -51,6 +51,7 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[]);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [flowCode, setFlowCode] = useState('');
 
@@ -245,20 +246,20 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
 
       // Frontend validation: exactly one initial status
       const initialCount = statusDtos.filter(s => s.isInitial).length;
-      if (initialCount === 0) { alert('O fluxo deve ter exatamente um status inicial.'); return; }
-      if (initialCount > 1) { alert('O fluxo deve ter apenas um status inicial.'); return; }
+      if (initialCount === 0) { toast.error('O fluxo deve ter exatamente um status inicial.'); setSaving(false); return; }
+      if (initialCount > 1) { toast.error('O fluxo deve ter apenas um status inicial.'); setSaving(false); return; }
 
       // Frontend validation: every action must have at least one identity with a selected entity
       for (const a of actionDtos) {
         const validIdentities = a.identities.filter(i => i.entityId && String(i.entityId).trim() !== '');
         if (validIdentities.length === 0) {
-          alert(`A ação "${a.code || '(sem código)'}" deve ter pelo menos uma identidade.`);
+          toast.error(`A ação "${a.code || '(sem código)'}" deve ter pelo menos uma identidade.`); setSaving(false);
           return;
         }
       }
 
       const res = await userControlApi.saveUserFlowGraph(flowId, { statuses: statusDtos, actions: actionDtos });
-      if (res.data?.error) { alert(res.data.error); return; }
+      if (res.data?.error) { toast.error(res.data.error); setSaving(false); return; }
       // Reload
       const flowRes = await userControlApi.getUserFlow(flowId);
       const flow = flowRes.data;
@@ -286,9 +287,10 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
 
       setNodes(reloadedNodes);
       setEdges(reloadedEdges);
+      toast.success('Fluxo salvo com sucesso.');
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Erro ao salvar o fluxo.';
-      alert(msg);
+      toast.error(msg);
     } finally { setSaving(false); }
   };
 

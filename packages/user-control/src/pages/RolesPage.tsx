@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Shield } from 'lucide-react';
 
 interface Role { id: number; code: string; description: string; isActive: boolean }
@@ -14,6 +14,7 @@ export default function RolesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Role>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -30,10 +31,10 @@ export default function RolesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateRole(editing.id, editing);
-      else await userControlApi.createRole(editing);
+      if (editing.id) { await userControlApi.updateRole(editing.id, editing); toast.success('Grupo de usuário atualizado com sucesso.'); }
+      else { await userControlApi.createRole(editing); toast.success('Grupo de usuário criado com sucesso.'); }
       setModalOpen(false); load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar grupo de usuário.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {

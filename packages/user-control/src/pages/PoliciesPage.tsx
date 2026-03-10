@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Shield } from 'lucide-react';
 
 interface PolicyGroup { id: number; code: string; description: string }
@@ -16,6 +16,7 @@ export default function PoliciesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Policy>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -38,10 +39,10 @@ export default function PoliciesPage() {
     e.preventDefault(); setSaving(true);
     try {
       const payload = { code: editing.code, description: editing.description, isActive: editing.isActive, policyGroup: editing.policyGroup ? { id: editing.policyGroup.id } : undefined };
-      if (editing.id) await userControlApi.updatePolicy(editing.id, payload);
-      else await userControlApi.createPolicy(payload);
+      if (editing.id) { await userControlApi.updatePolicy(editing.id, payload); toast.success('Política atualizada com sucesso.'); }
+      else { await userControlApi.createPolicy(payload); toast.success('Política criada com sucesso.'); }
       setModalOpen(false); load();
-    } catch (err) { console.error('Policy save error', err); alert('Erro ao salvar política.'); } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar política.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, GitBranch, Network } from 'lucide-react';
 import FlowEditorPage from './FlowEditorPage';
 
@@ -17,6 +17,7 @@ export default function SystemFlowsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<UserFlow>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
   const [editingFlowId, setEditingFlowId] = useState<number | null>(null);
 
   const load = useCallback(() => {
@@ -39,11 +40,11 @@ export default function SystemFlowsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateUserFlow(editing.id, editing as Record<string, unknown>);
-      else await userControlApi.createUserFlow(editing as Record<string, unknown>);
+      if (editing.id) { await userControlApi.updateUserFlow(editing.id as number, editing as Record<string, unknown>); toast.success('Fluxo atualizado com sucesso.'); }
+      else { await userControlApi.createUserFlow(editing as Record<string, unknown>); toast.success('Fluxo criado com sucesso.'); }
       setModalOpen(false);
       load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar fluxo.'); } finally { setSaving(false); }
   };
 
   const moduleName = (row: Record<string, unknown>) => {

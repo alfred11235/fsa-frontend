@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Layers } from 'lucide-react';
 
 interface CompanyGroup { id: number; code: string; description: string; isActive: boolean }
@@ -14,6 +14,7 @@ export default function CompanyGroupsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<CompanyGroup>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -30,10 +31,10 @@ export default function CompanyGroupsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateCompanyGroup(editing.id, editing);
-      else await userControlApi.createCompanyGroup(editing);
+      if (editing.id) { await userControlApi.updateCompanyGroup(editing.id, editing); toast.success('Grupo de empresa atualizado com sucesso.'); }
+      else { await userControlApi.createCompanyGroup(editing); toast.success('Grupo de empresa criado com sucesso.'); }
       setModalOpen(false); load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar grupo de empresa.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {

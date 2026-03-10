@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Map } from 'lucide-react';
 
 interface Region { id: number; code: string; description: string; isActive: boolean }
@@ -14,6 +14,7 @@ export default function RegionsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Region>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -33,10 +34,10 @@ export default function RegionsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateRegion(editing.id, editing);
-      else await userControlApi.createRegion(editing);
+      if (editing.id) { await userControlApi.updateRegion(editing.id, editing); toast.success('Região atualizada com sucesso.'); }
+      else { await userControlApi.createRegion(editing); toast.success('Região criada com sucesso.'); }
       setModalOpen(false); load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar região.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {

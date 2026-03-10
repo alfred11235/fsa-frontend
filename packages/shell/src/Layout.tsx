@@ -143,7 +143,6 @@ export default function Layout() {
         </div>
         <div className="flex items-center gap-4">
           <select className="rounded border border-[#475569] bg-[#334155] px-2 py-1 text-xs text-gray-200 outline-none">
-            <option>Humanistic</option>
             <option>Default</option>
           </select>
           <span className="text-xs text-gray-300">

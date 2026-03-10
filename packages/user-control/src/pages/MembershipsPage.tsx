@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, UserCog } from 'lucide-react';
 
 interface Membership {
@@ -24,6 +24,7 @@ export default function MembershipsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Membership>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const [users, setUsers] = useState<SelectOption[]>([]);
   const [roles, setRoles] = useState<SelectOption[]>([]);
@@ -64,11 +65,11 @@ export default function MembershipsPage() {
         contract: editing.contract ? { id: editing.contract.id } : null,
         isActive: editing.isActive,
       };
-      if (editing.id) await userControlApi.updateMembership(editing.id, payload);
-      else await userControlApi.createMembership(payload);
+      if (editing.id) { await userControlApi.updateMembership(editing.id, payload); toast.success('Filiação atualizada com sucesso.'); }
+      else { await userControlApi.createMembership(payload); toast.success('Filiação criada com sucesso.'); }
       setModalOpen(false);
       load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar filiação.'); } finally { setSaving(false); }
   };
 
   const columns = [

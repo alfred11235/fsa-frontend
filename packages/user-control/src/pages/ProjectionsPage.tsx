@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Projector } from 'lucide-react';
 
 interface Projection { id: number; code: string; description: string; srid: number | ''; isActive: boolean }
@@ -14,6 +14,7 @@ export default function ProjectionsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Projection>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -31,10 +32,10 @@ export default function ProjectionsPage() {
     e.preventDefault(); setSaving(true);
     try {
       const payload = { code: editing.code, description: editing.description, srid: editing.srid, isActive: editing.isActive };
-      if (editing.id) await userControlApi.updateProjection(editing.id, payload);
-      else await userControlApi.createProjection(payload);
+      if (editing.id) { await userControlApi.updateProjection(editing.id, payload); toast.success('Projeção atualizada com sucesso.'); }
+      else { await userControlApi.createProjection(payload); toast.success('Projeção criada com sucesso.'); }
       setModalOpen(false); load();
-    } catch (err) { console.error('Projection save error', err); alert('Erro ao salvar projeção.'); } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar projeção.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {

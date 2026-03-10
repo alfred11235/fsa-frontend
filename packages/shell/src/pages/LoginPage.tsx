@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthProvider';
+import { useToast } from '@fsa/shared-ui';
 import { LogIn } from 'lucide-react';
 
 export default function LoginPage() {
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -17,9 +19,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
+      toast.success('Login realizado com sucesso.');
       navigate('/');
     } catch {
       setError('Invalid email or password');
+      toast.error('Email ou senha inválidos.');
     } finally {
       setLoading(false);
     }

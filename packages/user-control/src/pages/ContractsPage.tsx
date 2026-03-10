@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, FileText } from 'lucide-react';
 
 interface Contract {
@@ -31,6 +31,7 @@ export default function ContractsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Contract>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const [companies, setCompanies] = useState<SelectOption[]>([]);
   const [systemModules, setSystemModules] = useState<SelectOption[]>([]);
@@ -69,11 +70,11 @@ export default function ContractsPage() {
         company: editing.company ? { id: editing.company.id } : null,
         systemModule: editing.systemModule ? { id: editing.systemModule.id } : null,
       };
-      if (editing.id) await userControlApi.updateContract(editing.id, payload);
-      else await userControlApi.createContract(payload);
+      if (editing.id) { await userControlApi.updateContract(editing.id, payload); toast.success('Contrato atualizado com sucesso.'); }
+      else { await userControlApi.createContract(payload); toast.success('Contrato criado com sucesso.'); }
       setModalOpen(false);
       load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar contrato.'); } finally { setSaving(false); }
   };
 
   const columns = [

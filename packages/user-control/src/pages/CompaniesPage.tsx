@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Building } from 'lucide-react';
 
 interface Company {
@@ -34,6 +34,7 @@ export default function CompaniesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Company>>(emptyCompany);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const [companyTypes, setCompanyTypes] = useState<SelectOption[]>([]);
   const [companyGroups, setCompanyGroups] = useState<SelectOption[]>([]);
@@ -103,11 +104,11 @@ export default function CompaniesPage() {
         consortium: editing.consortium ? { id: editing.consortium.id } : null,
         municipality: editing.municipality ? { id: editing.municipality.id } : null,
       };
-      if (editing.id) await userControlApi.updateCompany(editing.id, payload);
-      else await userControlApi.createCompany(payload);
+      if (editing.id) { await userControlApi.updateCompany(editing.id, payload); toast.success('Empresa atualizada com sucesso.'); }
+      else { await userControlApi.createCompany(payload); toast.success('Empresa criada com sucesso.'); }
       setModalOpen(false);
       load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar empresa.'); } finally { setSaving(false); }
   };
 
   const columns = [

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Handshake } from 'lucide-react';
 
 interface Consortium { id: number; code: string; description: string; isActive: boolean }
@@ -14,6 +14,7 @@ export default function ConsortiumsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Consortium>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -30,10 +31,10 @@ export default function ConsortiumsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateConsortium(editing.id, editing);
-      else await userControlApi.createConsortium(editing);
+      if (editing.id) { await userControlApi.updateConsortium(editing.id, editing); toast.success('Consórcio atualizado com sucesso.'); }
+      else { await userControlApi.createConsortium(editing); toast.success('Consórcio criado com sucesso.'); }
       setModalOpen(false); load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar consórcio.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {

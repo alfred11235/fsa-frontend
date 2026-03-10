@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Users } from 'lucide-react';
 
 interface User {
@@ -25,6 +25,7 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown>>(emptyUser);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -48,14 +49,14 @@ export default function UsersPage() {
         email: editing.email, phone: editing.phone, isActive: editing.isActive,
       };
       if (editing.password) payload.password = editing.password;
-      if (editing.id) await userControlApi.updateUser(editing.id as number, payload);
+      if (editing.id) { await userControlApi.updateUser(editing.id as number, payload); toast.success('Usuário atualizado com sucesso.'); }
       else {
         payload.password = editing.password || 'TempPass@123';
-        await userControlApi.createUser(payload);
+        await userControlApi.createUser(payload); toast.success('Usuário criado com sucesso.');
       }
       setModalOpen(false);
       load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar usuário.'); } finally { setSaving(false); }
   };
 
   const columns = [

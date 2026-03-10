@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { userControlApi } from '@fsa/shared-api';
-import { DataTable, Button, Modal } from '@fsa/shared-ui';
+import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, Globe } from 'lucide-react';
 
 interface State { id: number; code: string; description: string; abbreviation: string; isActive: boolean; region?: { id: number } }
@@ -14,6 +14,7 @@ export default function StatesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<State>>(empty);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -30,10 +31,10 @@ export default function StatesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      if (editing.id) await userControlApi.updateState(editing.id, editing);
-      else await userControlApi.createState(editing);
+      if (editing.id) { await userControlApi.updateState(editing.id, editing); toast.success('Estado atualizado com sucesso.'); }
+      else { await userControlApi.createState(editing); toast.success('Estado criado com sucesso.'); }
       setModalOpen(false); load();
-    } finally { setSaving(false); }
+    } catch { toast.error('Erro ao salvar estado.'); } finally { setSaving(false); }
   };
 
   const activeBadge = (row: Record<string, unknown>) => {

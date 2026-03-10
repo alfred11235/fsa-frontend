@@ -4,9 +4,25 @@ export default {
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
     '../shared-ui/src/**/*.{js,ts,jsx,tsx}',
+    '../user-control/src/**/*.{js,ts,jsx,tsx}',
+    '../network-map/src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
+      keyframes: {
+        'toast-in': {
+          '0%': { opacity: '0', transform: 'translateX(100%)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        'toast-out': {
+          '0%': { opacity: '1', transform: 'translateX(0)' },
+          '100%': { opacity: '0', transform: 'translateX(100%)' },
+        },
+      },
+      animation: {
+        'toast-in': 'toast-in 0.3s ease-out forwards',
+        'toast-out': 'toast-out 0.3s ease-in forwards',
+      },
       colors: {
         primary: {
           50: '#eff6ff',
