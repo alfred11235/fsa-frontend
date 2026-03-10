@@ -34,10 +34,10 @@ function StatusNode({ data }: { data: StatusData & { selected?: boolean } }) {
   const bg = data.isInitial ? 'bg-blue-50' : 'bg-white';
   return (
     <div className={`rounded-lg border-2 ${border} ${bg} px-4 py-3 shadow-sm min-w-[140px] text-center`}>
-      <Handle type="target" position={Position.Top} className="!bg-gray-400 !w-3 !h-3" />
+      <Handle type="target" position={Position.Top} id="target" className="!bg-gray-400 !w-3 !h-3" />
       <div className="text-xs font-bold text-gray-800">{data.code || 'Novo Status'}</div>
       {data.description && <div className="text-[10px] text-gray-500 mt-0.5">{data.description}</div>}
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-400 !w-3 !h-3" />
+      <Handle type="source" position={Position.Bottom} id="source" className="!bg-gray-400 !w-3 !h-3" />
     </div>
   );
 }
@@ -66,6 +66,7 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
   const [users, setUsers] = useState<UserOption[]>([]);
 
   const nextId = useRef(1);
+  const connectingFrom = useRef<string | null>(null);
 
   // Load roles + users independently (so a flow error doesn't block them)
   useEffect(() => {
@@ -101,6 +102,8 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
         id: `e-${a.id}`,
         source: String(a.statusFrom?.id),
         target: String(a.statusTo?.id),
+        sourceHandle: 'source',
+        targetHandle: 'target',
         label: a.code,
         type: 'default',
         markerEnd: { type: MarkerType.ArrowClosed },
@@ -155,12 +158,33 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
     setEditingNode(null);
   };
 
+  // Track which node the user started dragging from
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onConnectStart = useCallback((_: any, params: { nodeId: string | null }) => {
+    connectingFrom.current = params.nodeId;
+  }, []);
+
   // Connect two nodes → create edge
+  // Use connectingFrom ref to guarantee source = the node the user dragged FROM,
+  // target = the node the user dropped ON.
   const onConnect = useCallback((conn: Connection) => {
+    const origin = connectingFrom.current;
+    let src = conn.source;
+    let tgt = conn.target;
+
+    // If ReactFlow swapped source/target relative to the actual drag origin, swap back
+    if (origin && src !== origin) {
+      src = origin;
+      tgt = origin === conn.source ? conn.target : conn.source;
+    }
+
     const id = `e-${nextId.current++}`;
     const newEdge = {
-      ...conn,
       id,
+      source: src,
+      target: tgt,
+      sourceHandle: 'source',
+      targetHandle: 'target',
       label: 'Nova Ação',
       markerEnd: { type: MarkerType.ArrowClosed },
       data: { code: 'Nova Ação', description: '', identities: [] } as ActionData,
@@ -171,6 +195,7 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
     // Open edit modal for the new edge
     setEditingEdge({ id, data: { code: '', description: '', identities: [] } });
     setEdgeModal(true);
+    connectingFrom.current = null;
   }, [setEdges]);
 
   // Edge double-click to edit
@@ -278,6 +303,8 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
         id: `e-${a.id}`,
         source: String(a.statusFrom?.id),
         target: String(a.statusTo?.id),
+        sourceHandle: 'source',
+        targetHandle: 'target',
         label: a.code,
         type: 'default',
         markerEnd: { type: MarkerType.ArrowClosed },
@@ -329,6 +356,7 @@ export default function FlowEditorPage({ flowId, onBack }: Props) {
           onNodesChange={onNodesChange as (changes: NodeChange[]) => void}
           onEdgesChange={onEdgesChange as (changes: EdgeChange[]) => void}
           onConnect={onConnect}
+          onConnectStart={onConnectStart}
           onNodeDoubleClick={onNodeDoubleClick}
           onEdgeDoubleClick={onEdgeDoubleClick}
           nodeTypes={nodeTypes}
