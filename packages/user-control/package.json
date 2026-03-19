@@ -14,6 +14,7 @@
   "dependencies": {
     "@fsa/shared-api": "workspace:*",
     "@fsa/shared-ui": "workspace:*",
+    "@fsa/network-map": "workspace:*",
     "@xyflow/react": "^12.10.1",
     "lucide-react": "^0.378.0",
     "react": "^18.3.0",
