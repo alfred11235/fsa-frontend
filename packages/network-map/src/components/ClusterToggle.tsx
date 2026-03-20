@@ -22,6 +22,8 @@ export default function ClusterToggle({
   // Store the full layer specs when the map is ready so we can recreate them reliably
   const clusterLayerSpecs = useRef<maplibregl.LayerSpecification[]>([]);
   const clusterSourceSpec = useRef<{ clusterRadius: number; clusterMaxZoom: number } | null>(null);
+  // Store original minZoom of the main point layer so we can restore it after toggling
+  const originalMinZoom = useRef<number | undefined>(undefined);
 
   // Capture layer/source specs once the cluster layers exist on the map
   useEffect(() => {
@@ -40,6 +42,11 @@ export default function ClusterToggle({
       );
       if (specs.length > 0) {
         clusterLayerSpecs.current = specs.map((s) => ({ ...s }));
+      }
+      // Capture the original minZoom of the main point layer
+      const mainLayer = specs.find((l) => l.id === layerCode);
+      if (mainLayer && 'minzoom' in mainLayer && originalMinZoom.current === undefined) {
+        originalMinZoom.current = (mainLayer as { minzoom?: number }).minzoom;
       }
       // Capture cluster source options
       const sourceDef = mapStyle.sources[layerCode];
@@ -67,46 +74,80 @@ export default function ClusterToggle({
     const rawMap = adapter.getRawMap() as maplibregl.Map | null;
     if (!rawMap) return;
 
+    // Detect if this is a vector (MVT) source
+    const sourceDef = rawMap.getStyle()?.sources?.[layerCode];
+    const isMVT = sourceDef?.type === 'vector';
+
+    if (isMVT) {
+      // For MVT the backend emits three source-layers per clustered tile:
+      //   - "{layerCode}-clusters"    → cluster centroids  (visible when clustered)
+      //   - "{layerCode}"             → singles            (visible when clustered)
+      //   - "{layerCode}-unclustered" → ALL individual pts (visible when NOT clustered)
+      const clusterLayerId = `${layerCode}-cluster`;
+      const clusterCountLayerId = `${layerCode}-cluster-count`;
+      const unclusteredLayerId = `${layerCode}-unclustered`;
+
+      if (clustered) {
+        // Disable clusters → hide cluster circles/counts, show unclustered + main layer.
+        // Main layer stays visible because at high zoom (above clusterMaxZoom) the backend
+        // uses queryMVTSimple which only emits the "{layerCode}" source-layer.
+        if (rawMap.getLayer(clusterLayerId)) rawMap.setLayoutProperty(clusterLayerId, 'visibility', 'none');
+        if (rawMap.getLayer(clusterCountLayerId)) rawMap.setLayoutProperty(clusterCountLayerId, 'visibility', 'none');
+        if (rawMap.getLayer(layerCode)) {
+          rawMap.setLayoutProperty(layerCode, 'visibility', 'visible');
+          rawMap.setLayerZoomRange(layerCode, 0, 22);
+        }
+        if (rawMap.getLayer(unclusteredLayerId)) {
+          rawMap.setLayoutProperty(unclusteredLayerId, 'visibility', 'visible');
+          rawMap.setLayerZoomRange(unclusteredLayerId, 0, 22);
+        }
+        setClustered(false);
+      } else {
+        // Enable clusters → show cluster layers, hide unclustered, restore main layer minZoom
+        if (rawMap.getLayer(clusterLayerId)) rawMap.setLayoutProperty(clusterLayerId, 'visibility', 'visible');
+        if (rawMap.getLayer(clusterCountLayerId)) rawMap.setLayoutProperty(clusterCountLayerId, 'visibility', 'visible');
+        if (rawMap.getLayer(layerCode) && originalMinZoom.current !== undefined) {
+          rawMap.setLayerZoomRange(layerCode, originalMinZoom.current, 22);
+        }
+        if (rawMap.getLayer(unclusteredLayerId)) rawMap.setLayoutProperty(unclusteredLayerId, 'visibility', 'none');
+        setClustered(true);
+      }
+      return;
+    }
+
+    // GeoJSON path: recreate source with/without clustering
     const source = rawMap.getSource(layerCode) as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
 
-    // Get current GeoJSON data from the source via serialize()
     const serialized = source.serialize();
     const currentData = serialized?.data ?? { type: 'FeatureCollection', features: [] };
 
-    // Get current layers from the map style
     const mapStyle = rawMap.getStyle();
     const currentLayers = mapStyle.layers.filter(
       (l: maplibregl.LayerSpecification) => 'source' in l && l.source === layerCode
     );
 
-    // Only update stored specs when clustered (all layers present), not when unclustered
     if (clustered && currentLayers.length > 0) {
       clusterLayerSpecs.current = currentLayers.map((s) => ({ ...s }));
     }
 
-    // Use the stored full set of layer specs (includes cluster + cluster-count even when they're removed)
     const allLayerSpecs = clusterLayerSpecs.current.length > 0
       ? clusterLayerSpecs.current
       : currentLayers;
 
-    // Remove all current layers referencing this source
     for (const l of currentLayers) {
       rawMap.removeLayer(l.id);
     }
     rawMap.removeSource(layerCode);
 
     if (clustered) {
-      // Recreate source WITHOUT clustering
       rawMap.addSource(layerCode, {
         type: 'geojson',
         data: currentData,
       });
-      // Re-add only non-cluster layers (skip cluster + cluster-count)
       for (const l of allLayerSpecs) {
         if (l.id === `${layerCode}-cluster` || l.id === `${layerCode}-cluster-count`) continue;
         const restored = { ...l };
-        // Remove the cluster filter from the main point layer
         if (restored.id === layerCode && 'filter' in restored) {
           delete (restored as Record<string, unknown>).filter;
         }
@@ -114,7 +155,6 @@ export default function ClusterToggle({
       }
       setClustered(false);
     } else {
-      // Recreate source WITH clustering
       const cSpec = clusterSourceSpec.current ?? { clusterRadius: 60, clusterMaxZoom: 15 };
       rawMap.addSource(layerCode, {
         type: 'geojson',
@@ -123,10 +163,8 @@ export default function ClusterToggle({
         clusterRadius: cSpec.clusterRadius,
         clusterMaxZoom: cSpec.clusterMaxZoom,
       });
-      // Re-add all layers including cluster + cluster-count
       for (const l of allLayerSpecs) {
         const restored = { ...l };
-        // Restore the cluster filter on the main point layer
         if (restored.id === layerCode) {
           (restored as maplibregl.CircleLayerSpecification).filter = ['!', ['has', 'point_count']];
         }

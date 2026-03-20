@@ -72,8 +72,9 @@ function addLayerToMap(adapter: ReturnType<ReturnType<typeof useMap>['getAdapter
 
   // Build layer spec based on geometry type
   const spec = buildLayerSpec(layer, sourceId, layerId);
-  // If clustering is enabled, only show unclustered individual points
-  if (layer.cluster?.enabled && layer.geometryType === 'point') {
+  // If clustering is enabled for GeoJSON, only show unclustered individual points.
+  // For MVT, the backend already separates points and clusters into different source-layers.
+  if (layer.cluster?.enabled && layer.geometryType === 'point' && layer.source.type !== 'mvt') {
     spec.filter = ['!', ['has', 'point_count']];
   }
   adapter.addLayer(spec);
@@ -111,9 +112,13 @@ function addLayerToMap(adapter: ReturnType<ReturnType<typeof useMap>['getAdapter
     }
   }
 
-  // Add cluster layers if cluster config exists and source is GeoJSON
-  if (layer.cluster?.enabled && layer.source.type !== 'mvt') {
-    addClusterLayers(adapter, layer, sourceId);
+  // Add cluster layers if cluster config exists
+  if (layer.cluster?.enabled) {
+    if (layer.source.type === 'mvt') {
+      addMVTClusterLayers(adapter, layer, sourceId);
+    } else {
+      addClusterLayers(adapter, layer, sourceId);
+    }
   }
 
   // Add heatmap layer if configured
@@ -254,6 +259,66 @@ function addClusterLayers(
     },
     paint: {
       'text-color': '#ffffff',
+    },
+  });
+}
+
+function addMVTClusterLayers(
+  adapter: NonNullable<ReturnType<ReturnType<typeof useMap>['getAdapter']>>,
+  layer: LayerConfig,
+  sourceId: string,
+) {
+  // Server-side MVT clustering: the backend emits a "{code}-clusters" source-layer
+  // with point_count and point_count_abbreviated properties.
+  const clusterColor = layer.style.color ?? '#3b82f6';
+  const clusterSourceLayer = `${layer.code}-clusters`;
+
+  adapter.addLayer({
+    id: `${layer.code}-cluster`,
+    type: 'circle',
+    source: sourceId,
+    sourceLayer: clusterSourceLayer,
+    paint: {
+      'circle-color': clusterColor,
+      'circle-opacity': 0.85,
+      'circle-radius': ['step', ['get', 'point_count'], 18, 50, 24, 200, 30, 1000, 38],
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 2,
+    },
+  });
+
+  adapter.addLayer({
+    id: `${layer.code}-cluster-count`,
+    type: 'symbol',
+    source: sourceId,
+    sourceLayer: clusterSourceLayer,
+    layout: {
+      'text-field': ['get', 'point_count_abbreviated'],
+      'text-size': 13,
+      'text-font': ['Open Sans Semibold'],
+      'text-allow-overlap': true,
+    },
+    paint: {
+      'text-color': '#ffffff',
+    },
+  });
+
+  // Add an unclustered layer (hidden by default) that references the
+  // "{code}-unclustered" source-layer containing ALL individual points.
+  // ClusterToggle shows this layer when clusters are toggled off.
+  const s = layer.style;
+  adapter.addLayer({
+    id: `${layer.code}-unclustered`,
+    type: 'circle',
+    source: sourceId,
+    sourceLayer: `${layer.code}-unclustered`,
+    layout: { visibility: 'none' },
+    paint: {
+      'circle-color': s.color ?? '#3b82f6',
+      'circle-radius': s.iconSize ?? 5,
+      'circle-stroke-color': s.outlineColor ?? '#ffffff',
+      'circle-stroke-width': s.outlineWidth ?? 1.5,
+      'circle-opacity': s.opacity ?? 0.9,
     },
   });
 }

@@ -21,12 +21,19 @@ export default function MapPage() {
         name: 'Geographic Points',
         geometryType: 'point',
         source: {
-          type: 'geojson',
-          url: '/network-map/spatial/geojson?layerCode=geographic-points',
+          type: 'mvt',
+          url: '/api/network-map/spatial/mvt/geographic-points/{z}/{x}/{y}.mvt',
+          //type: 'geojson',
+          //url: '/network-map/spatial/geojson?layerCode=geographic-points',
         },
         style: { color: '#3b82f6', iconSize: 5, outlineColor: '#ffffff', outlineWidth: 1.5 },
         interactive: true,
         visibleByDefault: true,
+        cluster: {
+          enabled: true,
+          maxZoom: 15,
+          radius: 60,
+        },
         popup: {
           trigger: 'hover',
           title: 'Point #{id}',

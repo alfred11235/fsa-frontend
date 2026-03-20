@@ -129,8 +129,10 @@ export default function MapTestPage() {
         name: 'Postes',
         geometryType: 'point',
         source: {
-          type: 'geojson',
-          url: '/network-map/spatial/geojson?layerCode=geographic-points',
+          type: 'mvt',
+          url: '/api/network-map/spatial/mvt/geographic-points/{z}/{x}/{y}.mvt',
+          //type: 'geojson',
+          //url: '/network-map/spatial/geojson?layerCode=geographic-points',
         },
         style: {
           color: '#22c55e',
@@ -365,8 +367,8 @@ export default function MapTestPage() {
             <SearchBar placeholder="Buscar postes, transformadores..." />
             <LegendPanel layers={layers} />
             <MeasureTool position="top-right" style={{ top: 220 }} />
-            <BufferTool position="top-right" style={{ top: 355 }} radiusOptions={[50, 100, 200, 500]} drawnGeometry={lastDrawnGeometry} clearBufferRef={clearBufferRef} />
             <ClusterToggle layerCode="geographic-points" label="Clusters" position="top-right" style={{ top: 310 }} />
+            <BufferTool position="top-right" style={{ top: 355 }} radiusOptions={[50, 100, 200, 500]} drawnGeometry={lastDrawnGeometry} clearBufferRef={clearBufferRef} />
             <DrawTool position="top-right" style={{ top: 400 }} onDrawComplete={handleDrawComplete} onFeatureDeleted={handleFeatureDeleted} onSpatialQuery={handleSpatialQuery} />
 
           </div>

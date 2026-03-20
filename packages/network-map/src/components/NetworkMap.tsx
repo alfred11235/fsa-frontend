@@ -95,6 +95,32 @@ export default function NetworkMap({
   // Initialize map
   useEffect(() => {
     if (!containerRef.current) return;
+    // Build initial sources: include MVT layers in the style so MapLibre
+    // registers them at init time (dynamically added vector sources can
+    // fail to trigger tile fetches in some MapLibre versions).
+    const initialSources: Record<string, unknown> = {
+      'base-raster': {
+        type: 'raster',
+        tiles: [defaultBase.tileUrl],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: defaultBase.attribution ?? '',
+      },
+    };
+    for (const layer of layers) {
+      if (layer.source.type === 'mvt') {
+        const tileUrl = layer.source.url.startsWith('http')
+          ? layer.source.url
+          : `${window.location.origin}${layer.source.url}`;
+        initialSources[layer.code] = {
+          type: 'vector',
+          tiles: [tileUrl],
+          minzoom: layer.minZoom ?? 0,
+          maxzoom: layer.maxZoom ?? 22,
+        };
+      }
+    }
+
     const options: MapInitOptions = {
       center,
       zoom,
@@ -105,14 +131,7 @@ export default function NetworkMap({
       style: {
         version: 8,
         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-        sources: {
-          'base-raster': {
-            type: 'raster',
-            tiles: [defaultBase.tileUrl],
-            tileSize: 256,
-            attribution: defaultBase.attribution ?? '',
-          },
-        },
+        sources: initialSources,
         layers: [{ id: 'base-layer', type: 'raster', source: 'base-raster' }],
       },
     };

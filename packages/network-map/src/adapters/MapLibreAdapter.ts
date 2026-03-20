@@ -28,6 +28,7 @@ export class MapLibreAdapter implements MapAdapter {
           type: 'raster',
           tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
           tileSize: 256,
+          maxzoom: 18,
           attribution: '© OpenStreetMap contributors',
         },
       },
@@ -49,6 +50,16 @@ export class MapLibreAdapter implements MapAdapter {
       maxZoom: options.maxZoom ?? 22,
       bearing: options.bearing ?? 0,
       pitch: options.pitch ?? 0,
+      transformRequest: (url: string): maplibregl.RequestParameters | undefined => {
+        if (url.includes('/api/')) {
+          const token = localStorage.getItem('fsa_token');
+          if (token) {
+            return { url, headers: { 'Authorization': `Bearer ${token}` } };
+          }
+          return { url };
+        }
+        return undefined;
+      },
     });
 
     this.map.on('load', () => {
@@ -163,9 +174,11 @@ export class MapLibreAdapter implements MapAdapter {
   }
 
   addVectorSource(id: string, url: string, options?: VectorSourceOptions): void {
+    // MapLibre requires absolute URLs for tile sources
+    const absoluteUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
     this.requireMap().addSource(id, {
       type: 'vector',
-      tiles: [url],
+      tiles: [absoluteUrl],
       minzoom: options?.minzoom ?? 0,
       maxzoom: options?.maxzoom ?? 22,
     });
