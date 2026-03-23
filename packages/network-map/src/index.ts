@@ -21,6 +21,7 @@ export { default as MeasureTool } from './components/MeasureTool';
 export { default as DrawTool } from './components/DrawTool';
 export { default as BufferTool } from './components/BufferTool';
 export { default as ClusterToggle } from './components/ClusterToggle';
+export { default as ZoomHistoryControl } from './components/ZoomHistoryControl';
 
 // Hooks
 export { useLayerRenderer } from './hooks/useLayerRenderer';

@@ -29,6 +29,8 @@ export interface MapInitOptions {
 
 export interface MapStyleSpec {
   version: 8;
+  glyphs?: string;
+  sprite?: string;
   sources: Record<string, unknown>;
   layers: unknown[];
 }

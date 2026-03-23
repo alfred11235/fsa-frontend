@@ -9,6 +9,8 @@ interface DrawToolProps {
   onDrawComplete?: (geometry: GeoJSON.Geometry, drawId: string) => void;
   /** Called when a drawn figure is deleted, so parent can clean up associated resources (e.g. buffers) */
   onFeatureDeleted?: (drawId: string) => void;
+  /** Called when the selected figure changes — null means nothing is selected */
+  onSelectionChange?: (drawId: string | null, geometry: GeoJSON.Geometry | null) => void;
   /** Called after a polygon/line/circle is drawn with the features found inside the drawn area */
   onSpatialQuery?: (drawnGeometry: GeoJSON.Geometry, featuresInArea: GeoJSON.Feature[]) => void;
   /** Layer IDs to include in spatial queries. If empty/undefined, queries all visible data layers. */
@@ -27,6 +29,7 @@ export default function DrawTool({
   style,
   onDrawComplete,
   onFeatureDeleted,
+  onSelectionChange,
   onSpatialQuery,
   spatialQueryLayers,
 }: DrawToolProps) {
@@ -43,6 +46,8 @@ export default function DrawTool({
   onDrawCompleteRef.current = onDrawComplete;
   const onFeatureDeletedRef = useRef(onFeatureDeleted);
   onFeatureDeletedRef.current = onFeatureDeleted;
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
   const onSpatialQueryRef = useRef(onSpatialQuery);
   onSpatialQueryRef.current = onSpatialQuery;
   const spatialQueryLayersRef = useRef(spatialQueryLayers);
@@ -151,7 +156,7 @@ export default function DrawTool({
     adapter.updateGeoJSONSource(RESULT_SOURCE, { type: 'FeatureCollection', features: completedFeatures });
   }, [completedFeatures, isReady, getAdapter]);
 
-  // Update selection highlight
+  // Update selection highlight + notify parent
   useEffect(() => {
     if (!isReady || !selSourceAdded.current) return;
     const adapter = getAdapter();
@@ -159,6 +164,7 @@ export default function DrawTool({
     const selFeature = selectedId ? completedFeatures.find((f) => f.properties?._drawId === selectedId) : null;
     const features = selFeature ? [selFeature] : [];
     adapter.updateGeoJSONSource(SEL_SOURCE, { type: 'FeatureCollection', features });
+    onSelectionChangeRef.current?.(selectedId, selFeature?.geometry ?? null);
   }, [selectedId, completedFeatures, isReady, getAdapter]);
 
   // Disable double-click zoom while in draw mode
@@ -403,6 +409,7 @@ export default function DrawTool({
     const resultLayers = [`${RESULT_SOURCE}-fill`, `${RESULT_SOURCE}-line`, `${RESULT_SOURCE}-points`];
 
     const handleResultClick = (e: { point: { x: number; y: number } }) => {
+      // First, check the draw result layers
       const hits = adapter.queryRenderedFeatures(e.point, resultLayers) as {
         properties: Record<string, unknown>;
       }[];
@@ -410,6 +417,19 @@ export default function DrawTool({
         const hitId = hits[0].properties._drawId as string | undefined;
         if (hitId) {
           setSelectedId((prev) => (prev === hitId ? null : hitId));
+          return;
+        }
+      }
+      // Also check buffer layers — a buffer overlay should not deselect
+      // its owning figure. Map the buffer's _bufferDrawId back to the draw.
+      const bufferLayers = ['__buffer-layer', '__buffer-outline'];
+      const bufferHits = adapter.queryRenderedFeatures(e.point, bufferLayers) as {
+        properties: Record<string, unknown>;
+      }[];
+      if (bufferHits.length > 0) {
+        const ownerId = bufferHits[0].properties._bufferDrawId as string | undefined;
+        if (ownerId) {
+          setSelectedId((prev) => (prev === ownerId ? prev : ownerId));
           return;
         }
       }

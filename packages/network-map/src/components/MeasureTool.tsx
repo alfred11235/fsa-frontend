@@ -40,7 +40,7 @@ export default function MeasureTool({ position = 'top-right', style }: MeasureTo
         id: 'measure-points',
         type: 'circle',
         source: 'measure-source',
-        filter: ['==', '$type', 'Point'],
+        filter: ['all', ['==', '$type', 'Point'], ['!has', '_segLabel']],
         paint: {
           'circle-radius': 4,
           'circle-color': '#ef4444',
@@ -48,10 +48,30 @@ export default function MeasureTool({ position = 'top-right', style }: MeasureTo
           'circle-stroke-width': 2,
         },
       });
+      adapter.addLayer({
+        id: 'measure-segment-labels',
+        type: 'symbol',
+        source: 'measure-source',
+        filter: ['has', '_segLabel'],
+        layout: {
+          'text-field': ['get', '_segLabel'],
+          'text-size': 12,
+          'text-font': ['Open Sans Semibold'],
+          'text-anchor': 'center',
+          'text-allow-overlap': true,
+          'text-offset': [0, -1],
+        },
+        paint: {
+          'text-color': '#dc2626',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2,
+        },
+      });
       sourceAdded.current = true;
     }
 
     if (mode === 'none' && sourceAdded.current) {
+      adapter.removeLayer('measure-segment-labels');
       adapter.removeLayer('measure-points');
       adapter.removeLayer('measure-line');
       adapter.removeSource('measure-source');
@@ -84,6 +104,18 @@ export default function MeasureTool({ position = 'top-right', style }: MeasureTo
           geometry: { type: 'LineString', coordinates: points },
           properties: {},
         });
+        // Segment midpoint labels
+        for (let i = 1; i < points.length; i++) {
+          const a = points[i - 1];
+          const b = points[i];
+          const mid: [number, number] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          const segDist = haversineDistance(a, b);
+          features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: mid },
+            properties: { _segLabel: formatDistance(segDist) },
+          });
+        }
       } else if (mode === 'area' && points.length >= 3) {
         features.push({
           type: 'Feature',
@@ -242,7 +274,6 @@ function formatDistance(meters: number): string {
 }
 
 function formatArea(sqMeters: number): string {
-  if (sqMeters >= 1_000_000) return (sqMeters / 1_000_000).toFixed(2) + ' km²';
-  if (sqMeters >= 10_000) return (sqMeters / 10_000).toFixed(2) + ' ha';
+  if (sqMeters >= 1_000_000) return sqMeters.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' m²';
   return sqMeters.toFixed(1) + ' m²';
 }

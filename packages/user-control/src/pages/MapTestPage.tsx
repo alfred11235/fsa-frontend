@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useRef } from 'react';
+import { useMemo, useCallback, useState, useRef } from 'react';
 import {
   MapProvider,
   MapLibreAdapter,
@@ -9,34 +9,33 @@ import {
   DrawTool,
   BufferTool,
   ClusterToggle,
+  ZoomHistoryControl,
 } from '@fsa/network-map';
 import type { LayerConfig } from '@fsa/network-map';
 import { MapPin } from 'lucide-react';
 
 export default function MapTestPage() {
   const adapterFactory = useMemo(() => () => new MapLibreAdapter(), []);
-  const [lastDrawnGeometry, setLastDrawnGeometry] = useState<GeoJSON.Geometry | null>(null);
-  // Track which drawId owns the current buffer so we can clear it when that figure is deleted
-  const [bufferOwnerDrawId, setBufferOwnerDrawId] = useState<string | null>(null);
-  const clearBufferRef = useRef<(() => void) | null>(null);
+  const [selectedDrawId, setSelectedDrawId] = useState<string | null>(null);
+  const [selectedDrawGeometry, setSelectedDrawGeometry] = useState<GeoJSON.Geometry | null>(null);
+  const clearBufferRef = useRef<((drawId?: string) => void) | null>(null);
 
   const handleDrawComplete = useCallback((geometry: GeoJSON.Geometry, drawId: string) => {
     // eslint-disable-next-line no-console
     console.log('[DrawTool] Geometry drawn:', drawId, JSON.stringify(geometry));
-    setLastDrawnGeometry(geometry);
-    setBufferOwnerDrawId(drawId);
   }, []);
 
   const handleFeatureDeleted = useCallback((drawId: string) => {
     // eslint-disable-next-line no-console
     console.log('[DrawTool] Feature deleted:', drawId);
-    // If the deleted figure owns the buffer, clear it
-    if (drawId === bufferOwnerDrawId) {
-      clearBufferRef.current?.();
-      setLastDrawnGeometry(null);
-      setBufferOwnerDrawId(null);
-    }
-  }, [bufferOwnerDrawId]);
+    // Clear the buffer associated with the deleted figure
+    clearBufferRef.current?.(drawId);
+  }, []);
+
+  const handleSelectionChange = useCallback((drawId: string | null, geometry: GeoJSON.Geometry | null) => {
+    setSelectedDrawId(drawId);
+    setSelectedDrawGeometry(geometry);
+  }, []);
 
   const handleSpatialQuery = useCallback((drawnGeometry: GeoJSON.Geometry, features: GeoJSON.Feature[]) => {
     // eslint-disable-next-line no-console
@@ -368,9 +367,9 @@ export default function MapTestPage() {
             <LegendPanel layers={layers} />
             <MeasureTool position="top-right" style={{ top: 220 }} />
             <ClusterToggle layerCode="geographic-points" label="Clusters" position="top-right" style={{ top: 310 }} />
-            <BufferTool position="top-right" style={{ top: 355 }} radiusOptions={[50, 100, 200, 500]} drawnGeometry={lastDrawnGeometry} clearBufferRef={clearBufferRef} />
-            <DrawTool position="top-right" style={{ top: 400 }} onDrawComplete={handleDrawComplete} onFeatureDeleted={handleFeatureDeleted} onSpatialQuery={handleSpatialQuery} />
-
+            <BufferTool position="top-right" style={{ top: 355 }} radiusOptions={[50, 100, 200, 500]} selectedDrawId={selectedDrawId} selectedDrawGeometry={selectedDrawGeometry} clearBufferRef={clearBufferRef} />
+            <DrawTool position="top-right" style={{ top: 400 }} onDrawComplete={handleDrawComplete} onFeatureDeleted={handleFeatureDeleted} onSelectionChange={handleSelectionChange} onSpatialQuery={handleSpatialQuery} />
+            <ZoomHistoryControl position="top-right" style={{ top: 600 }} />
           </div>
         </MapProvider>
       </div>

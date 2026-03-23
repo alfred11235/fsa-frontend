@@ -7,64 +7,57 @@ const BUFFER_SOURCE = '__buffer-source';
 const BUFFER_LAYER = '__buffer-layer';
 const BUFFER_OUTLINE = '__buffer-outline';
 
+/** One buffer entry, keyed by the drawId that owns it */
+interface BufferEntry {
+  drawId: string;
+  radius: number;
+  feature: GeoJSON.Feature;
+}
+
 interface BufferToolProps {
   position?: 'top-left' | 'top-right';
   style?: React.CSSProperties;
   radiusOptions?: number[];
-  /** Optional drawn geometry to buffer (client-side) when no feature is selected */
-  drawnGeometry?: GeoJSON.Geometry | null;
-  /** Ref callback: receives a function to imperatively clear the buffer from outside */
-  clearBufferRef?: React.MutableRefObject<(() => void) | null>;
+  /** Currently selected drawn figure's drawId (from DrawTool.onSelectionChange) */
+  selectedDrawId?: string | null;
+  /** Currently selected drawn figure's geometry (from DrawTool.onSelectionChange) */
+  selectedDrawGeometry?: GeoJSON.Geometry | null;
+  /** Ref callback: receives a function to clear a specific buffer by drawId, or all if no id */
+  clearBufferRef?: React.MutableRefObject<((drawId?: string) => void) | null>;
 }
 
 export default function BufferTool({
   position = 'top-right',
   style,
   radiusOptions = [50, 100, 200, 500],
-  drawnGeometry,
+  selectedDrawId,
+  selectedDrawGeometry,
   clearBufferRef: externalClearRef,
 }: BufferToolProps) {
   const { selectedFeature, getAdapter } = useMap();
   const [open, setOpen] = useState(false);
-  const [activeRadius, setActiveRadius] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  // Multiple buffers, each keyed by drawId
+  const [buffers, setBuffers] = useState<BufferEntry[]>([]);
+  const sourceAdded = useRef(false);
 
   const positionClass = position === 'top-left' ? 'left-4' : 'right-4';
 
-  const canActivate = !!selectedFeature || !!drawnGeometry;
+  const canActivate = !!selectedFeature || !!selectedDrawGeometry;
 
-  const clearBuffer = useCallback(() => {
+  // The radius currently active on the selected figure (if any)
+  const activeRadiusForSelected = selectedDrawId
+    ? buffers.find((b) => b.drawId === selectedDrawId)?.radius ?? null
+    : null;
+  const hasAnyBuffer = buffers.length > 0;
+
+  // ── Manage buffer source/layers lifecycle ──
+  useEffect(() => {
     const adapter = getAdapter();
     if (!adapter) return;
-    if (adapter.hasLayer(BUFFER_OUTLINE)) adapter.removeLayer(BUFFER_OUTLINE);
-    if (adapter.hasLayer(BUFFER_LAYER)) adapter.removeLayer(BUFFER_LAYER);
-    if (adapter.hasSource(BUFFER_SOURCE)) adapter.removeSource(BUFFER_SOURCE);
-    setActiveRadius(null);
-  }, [getAdapter]);
 
-  // Keep a stable ref to clearBuffer so the parent can call it imperatively
-  const clearBufferRef = useRef(clearBuffer);
-  clearBufferRef.current = clearBuffer;
-
-  // Expose clearBuffer to the parent so it can clear when the associated figure is deleted
-  useEffect(() => {
-    if (externalClearRef) externalClearRef.current = () => clearBufferRef.current();
-    return () => { if (externalClearRef) externalClearRef.current = null; };
-  }, [externalClearRef]);
-
-  const addBufferToMap = useCallback(
-    (geojson: GeoJSON.FeatureCollection | GeoJSON.Feature | GeoJSON.Geometry, radius: number) => {
-      const adapter = getAdapter();
-      if (!adapter) return;
-      clearBuffer();
-
-      const data: GeoJSON.FeatureCollection = geojson.type === 'FeatureCollection'
-        ? geojson
-        : geojson.type === 'Feature'
-          ? { type: 'FeatureCollection', features: [geojson] }
-          : { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: geojson, properties: {} }] };
-
-      adapter.addGeoJSONSource(BUFFER_SOURCE, data);
+    if (buffers.length > 0 && !sourceAdded.current) {
+      adapter.addGeoJSONSource(BUFFER_SOURCE, { type: 'FeatureCollection', features: [] });
       adapter.addLayer({
         id: BUFFER_LAYER,
         type: 'fill',
@@ -77,10 +70,40 @@ export default function BufferTool({
         source: BUFFER_SOURCE,
         paint: { 'line-color': '#f97316', 'line-width': 2, 'line-dasharray': [4, 2] },
       });
-      setActiveRadius(radius);
-    },
-    [getAdapter, clearBuffer],
-  );
+      sourceAdded.current = true;
+    }
+
+    if (buffers.length === 0 && sourceAdded.current) {
+      if (adapter.hasLayer(BUFFER_OUTLINE)) adapter.removeLayer(BUFFER_OUTLINE);
+      if (adapter.hasLayer(BUFFER_LAYER)) adapter.removeLayer(BUFFER_LAYER);
+      if (adapter.hasSource(BUFFER_SOURCE)) adapter.removeSource(BUFFER_SOURCE);
+      sourceAdded.current = false;
+    }
+  }, [buffers, getAdapter]);
+
+  // ── Update GeoJSON source whenever buffers change ──
+  useEffect(() => {
+    if (!sourceAdded.current) return;
+    const adapter = getAdapter();
+    if (!adapter) return;
+    const fc: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: buffers.map((b) => b.feature),
+    };
+    adapter.updateGeoJSONSource(BUFFER_SOURCE, fc);
+  }, [buffers, getAdapter]);
+
+  const clearBuffer = useCallback((drawId?: string) => {
+    if (drawId) {
+      setBuffers((prev) => prev.filter((b) => b.drawId !== drawId));
+    } else {
+      setBuffers([]);
+    }
+  }, []);
+
+  // Expose clearBuffer to parent — set synchronously during render so
+  // the ref is always available (not deferred to a useEffect flush).
+  if (externalClearRef) externalClearRef.current = clearBuffer;
 
   const showBuffer = useCallback(
     async (radius: number) => {
@@ -98,11 +121,28 @@ export default function BufferTool({
               radiusMeters: radius,
             },
           });
-          addBufferToMap(res.data, radius);
-        } else if (drawnGeometry) {
-          // Client-side: expand the drawn geometry by the given radius
-          const buffered = bufferGeometry(drawnGeometry, radius);
-          addBufferToMap(buffered, radius);
+          const data = res.data as GeoJSON.FeatureCollection | GeoJSON.Feature | GeoJSON.Geometry;
+          const feat: GeoJSON.Feature = data.type === 'FeatureCollection'
+            ? data.features[0]
+            : data.type === 'Feature'
+              ? data
+              : { type: 'Feature', geometry: data, properties: {} };
+          if (feat) {
+            const drawId = `server-${selectedFeature.id}`;
+            feat.properties = { ...feat.properties, _bufferDrawId: drawId };
+            setBuffers((prev) => [...prev.filter((b) => b.drawId !== drawId), { drawId, radius, feature: feat }]);
+          }
+        } else if (selectedDrawGeometry && selectedDrawId) {
+          // Client-side: expand the selected drawn figure by the given radius
+          const buffered = bufferGeometry(selectedDrawGeometry, radius);
+          const feat = buffered.features[0];
+          if (feat) {
+            feat.properties = { ...feat.properties, _bufferDrawId: selectedDrawId };
+            setBuffers((prev) => [
+              ...prev.filter((b) => b.drawId !== selectedDrawId),
+              { drawId: selectedDrawId, radius, feature: feat },
+            ]);
+          }
         }
       } catch (err) {
         console.warn('[BufferTool] Failed to compute buffer:', err);
@@ -111,8 +151,16 @@ export default function BufferTool({
         setOpen(false);
       }
     },
-    [selectedFeature, drawnGeometry, getAdapter, addBufferToMap],
+    [selectedFeature, selectedDrawGeometry, selectedDrawId, getAdapter],
   );
+
+  const handleClearCurrent = useCallback(() => {
+    if (selectedDrawId) {
+      clearBuffer(selectedDrawId);
+    } else if (selectedFeature) {
+      clearBuffer(`server-${selectedFeature.id}`);
+    }
+  }, [selectedDrawId, selectedFeature, clearBuffer]);
 
   return (
     <div className={`absolute ${positionClass} z-10`} style={style}>
@@ -120,7 +168,7 @@ export default function BufferTool({
         onClick={() => setOpen(!open)}
         disabled={!canActivate}
         className={`flex h-10 w-10 items-center justify-center rounded-lg border shadow-md transition-colors ${
-          activeRadius
+          hasAnyBuffer
             ? 'border-orange-400 bg-orange-50 text-orange-600'
             : canActivate
               ? 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
@@ -140,7 +188,7 @@ export default function BufferTool({
               onClick={() => showBuffer(r)}
               disabled={loading}
               className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm ${
-                activeRadius === r
+                activeRadiusForSelected === r
                   ? 'bg-orange-50 font-medium text-orange-700'
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
@@ -149,9 +197,9 @@ export default function BufferTool({
               {r} m
             </button>
           ))}
-          {activeRadius && (
+          {activeRadiusForSelected && (
             <button
-              onClick={clearBuffer}
+              onClick={handleClearCurrent}
               className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-red-500 hover:bg-red-50"
             >
               Clear buffer
