@@ -10,6 +10,10 @@ interface MapContextValue {
   selectedFeature: MapFeature | null;
   hoveredFeature: MapFeature | null;
   isReady: boolean;
+  /** Monotonically increasing counter — bumped by invalidateLayer to trigger re-fetches */
+  layerInvalidationKey: number;
+  /** Set of layer codes that need re-fetching */
+  invalidatedLayers: Set<string>;
 
   initMap(container: HTMLElement, options: MapInitOptions): void;
   destroyMap(): void;
@@ -17,6 +21,10 @@ interface MapContextValue {
   setSelectedFeature(feature: MapFeature | null): void;
   setHoveredFeature(feature: MapFeature | null): void;
   getAdapter(): MapAdapter | null;
+  /** Invalidate a layer so its data is re-fetched (for GeoJSON sources) */
+  invalidateLayer(code: string): void;
+  /** Clear a layer from the invalidated set (called by useLayerDataFetcher after re-fetch) */
+  clearInvalidation(code: string): void;
 }
 
 const MapCtx = createContext<MapContextValue | null>(null);
@@ -33,6 +41,9 @@ export function MapProvider({ children, adapterFactory }: MapProviderProps) {
   const [layers, setLayers] = useState<LayerConfig[]>([]);
   const [selectedFeature, setSelectedFeature] = useState<MapFeature | null>(null);
   const [hoveredFeature, setHoveredFeature] = useState<MapFeature | null>(null);
+  const [layerInvalidationKey, setLayerInvalidationKey] = useState(0);
+  const invalidatedLayersRef = useRef<Set<string>>(new Set());
+  const [invalidatedLayers, setInvalidatedLayers] = useState<Set<string>>(new Set());
 
   const initMap = useCallback(
     (container: HTMLElement, options: MapInitOptions) => {
@@ -62,6 +73,17 @@ export function MapProvider({ children, adapterFactory }: MapProviderProps) {
 
   const getAdapter = useCallback(() => adapterRef.current, []);
 
+  const invalidateLayer = useCallback((code: string) => {
+    invalidatedLayersRef.current.add(code);
+    setInvalidatedLayers(new Set(invalidatedLayersRef.current));
+    setLayerInvalidationKey((k) => k + 1);
+  }, []);
+
+  const clearInvalidation = useCallback((code: string) => {
+    invalidatedLayersRef.current.delete(code);
+    setInvalidatedLayers(new Set(invalidatedLayersRef.current));
+  }, []);
+
   const value: MapContextValue = {
     adapter: adapterRef.current,
     viewport,
@@ -69,12 +91,16 @@ export function MapProvider({ children, adapterFactory }: MapProviderProps) {
     selectedFeature,
     hoveredFeature,
     isReady,
+    layerInvalidationKey,
+    invalidatedLayers,
     initMap,
     destroyMap,
     setLayers,
     setSelectedFeature,
     setHoveredFeature,
     getAdapter,
+    invalidateLayer,
+    clearInvalidation,
   };
 
   return <MapCtx.Provider value={value}>{children}</MapCtx.Provider>;

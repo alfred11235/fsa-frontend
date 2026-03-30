@@ -36,7 +36,7 @@ export interface MapStyleSpec {
 }
 
 export type ControlPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-export type MapEventType = 'click' | 'mousemove' | 'mouseenter' | 'mouseleave' | 'moveend' | 'zoomend' | 'load';
+export type MapEventType = 'click' | 'mousedown' | 'mouseup' | 'mousemove' | 'mouseenter' | 'mouseleave' | 'moveend' | 'zoomend' | 'load';
 export type DrawMode = 'point' | 'line' | 'polygon' | 'circle';
 
 export interface MapFeature {
@@ -80,6 +80,7 @@ export interface MapLayerStyle {
   icon?: string;
   iconSize?: number;
   dashArray?: number[];
+  lineOffset?: number;
   fillColor?: string;
   fillOpacity?: number;
   textField?: string;

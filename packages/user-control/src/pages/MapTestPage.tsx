@@ -10,6 +10,7 @@ import {
   BufferTool,
   ClusterToggle,
   ZoomHistoryControl,
+  NetworkEditorTool,
 } from '@fsa/network-map';
 import type { LayerConfig } from '@fsa/network-map';
 import { MapPin } from 'lucide-react';
@@ -62,6 +63,7 @@ export default function MapTestPage() {
           color: '#ef4444',
           width: 3,
           opacity: 0.9,
+          lineOffset: 3,
         },
         minZoom: 13,
         interactive: true,
@@ -100,6 +102,7 @@ export default function MapTestPage() {
           width: 2,
           opacity: 0.8,
           dashArray: [6, 3],
+          lineOffset: -3,
         },
         minZoom: 14,
         interactive: true,
@@ -370,6 +373,26 @@ export default function MapTestPage() {
             <BufferTool position="top-right" style={{ top: 355 }} radiusOptions={[50, 100, 200, 500]} selectedDrawId={selectedDrawId} selectedDrawGeometry={selectedDrawGeometry} clearBufferRef={clearBufferRef} />
             <DrawTool position="top-right" style={{ top: 400 }} onDrawComplete={handleDrawComplete} onFeatureDeleted={handleFeatureDeleted} onSelectionChange={handleSelectionChange} onSpatialQuery={handleSpatialQuery} />
             <ZoomHistoryControl position="top-right" style={{ top: 600 }} />
+            <NetworkEditorTool
+              position="top-left"
+              style={{ top: 200 }}
+              pointFields={{
+                geographicPointTypeId: { visible: true, required: true, label: 'Tipo de Poste' },
+                basement: { visible: true, required: false, label: 'Base' },
+                zone: { visible: true, required: false, label: 'Zona' },
+                address: { visible: true, required: false, label: 'Endereço' },
+                neighborhood: { visible: true, required: false, label: 'Bairro' },
+              }}
+              wireFields={{
+                wireOfLine: { visible: true, required: false, label: 'Cabo' },
+              }}
+              refreshSourceIds={['geographic-points', 'mt-wires', 'lt-wires']}
+              wireLayerCodes={['mt-wires', 'lt-wires']}
+              onDataChanged={() => {
+                // eslint-disable-next-line no-console
+                console.log('[NetworkEditorTool] Data changed — layers should refresh');
+              }}
+            />
           </div>
         </MapProvider>
       </div>

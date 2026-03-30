@@ -162,6 +162,7 @@ function buildLayerSpec(layer: LayerConfig, sourceId: string, layerId: string): 
           'line-width': s.width ?? 2,
           'line-opacity': s.opacity ?? 1,
           ...(s.dashArray ? { 'line-dasharray': s.dashArray } : {}),
+          ...(s.lineOffset != null ? { 'line-offset': s.lineOffset } : {}),
         },
         layout: {
           'line-cap': 'round',

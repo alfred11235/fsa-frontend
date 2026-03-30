@@ -4,3 +4,4 @@ export { userFlowApi } from './userFlowApi';
 export { serviceOrdersApi } from './serviceOrdersApi';
 export { topoNetworkApi } from './topoNetworkApi';
 export { networkMapApi } from './networkMapApi';
+export type { PointRequest, WireRequest, GeographicPointType } from './topoNetworkApi';

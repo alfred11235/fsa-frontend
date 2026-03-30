@@ -11,7 +11,7 @@ import { apiClient } from '@fsa/shared-api';
  * Skips fetching when zoom is below layer.minZoom to save bandwidth.
  */
 export function useLayerDataFetcher(layers: LayerConfig[]) {
-  const { getAdapter, isReady, viewport } = useMap();
+  const { getAdapter, isReady, viewport, invalidatedLayers, clearInvalidation, layerInvalidationKey } = useMap();
   const intervalRefs = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
@@ -23,6 +23,12 @@ export function useLayerDataFetcher(layers: LayerConfig[]) {
 
     const bbox = viewport?.bounds;
     const zoom = viewport?.zoom ?? 12;
+
+    // Clear dedup keys for invalidated layers so they are re-fetched
+    for (const code of invalidatedLayers) {
+      fetchedKeys.current.delete(code);
+      clearInvalidation(code);
+    }
 
     for (const layer of layers) {
       if (layer.source.type !== 'geojson') continue;
@@ -73,8 +79,10 @@ export function useLayerDataFetcher(layers: LayerConfig[]) {
         intervalRefs.current.set(layer.code, handle);
       }
     }
-  }, [getAdapter, viewport, layers]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getAdapter, viewport, layers, invalidatedLayers, clearInvalidation]);
 
+  // Re-fetch on viewport changes (debounced)
   useEffect(() => {
     if (!isReady) return;
 
@@ -93,5 +101,13 @@ export function useLayerDataFetcher(layers: LayerConfig[]) {
       }
       abortControllers.current.clear();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, doFetch]);
+
+  // Immediate re-fetch when layers are explicitly invalidated (no debounce)
+  useEffect(() => {
+    if (!isReady || layerInvalidationKey === 0) return;
+    doFetch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layerInvalidationKey]);
 }

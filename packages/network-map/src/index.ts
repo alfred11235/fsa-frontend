@@ -22,6 +22,8 @@ export { default as DrawTool } from './components/DrawTool';
 export { default as BufferTool } from './components/BufferTool';
 export { default as ClusterToggle } from './components/ClusterToggle';
 export { default as ZoomHistoryControl } from './components/ZoomHistoryControl';
+export { default as NetworkEditorTool } from './components/NetworkEditorTool';
+export type { PointFieldsConfig, WireFieldsConfig, FieldConfig } from './components/NetworkEditorTool';
 
 // Hooks
 export { useLayerRenderer } from './hooks/useLayerRenderer';

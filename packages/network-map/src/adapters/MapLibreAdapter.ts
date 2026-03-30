@@ -206,6 +206,53 @@ export class MapLibreAdapter implements MapAdapter {
     return !!this.safeMap()?.getSource(id);
   }
 
+  refreshSource(id: string): void {
+    const m = this.safeMap();
+    if (!m) return;
+    const style = m.getStyle();
+    const sourceDef = style?.sources?.[id];
+    if (!sourceDef) return;
+
+    if (sourceDef.type === 'vector') {
+      // For vector (MVT) sources: remove and re-add with same config to bust tile cache
+      const layers = style.layers.filter(
+        (l: maplibregl.LayerSpecification) => 'source' in l && l.source === id,
+      );
+      const layerSpecs = layers.map((l) => ({ ...l }));
+
+      // Remove layers first, then source
+      for (const l of layerSpecs) m.removeLayer(l.id);
+      m.removeSource(id);
+
+      // Re-add source with cache-busting timestamp
+      const src = sourceDef as { tiles?: string[]; minzoom?: number; maxzoom?: number };
+      const bustTiles = (src.tiles ?? []).map((t: string) => {
+        // Strip any previous _t= cache-buster before adding a new one
+        const cleaned = t.replace(/[?&]_t=\d+/, '');
+        const sep = cleaned.includes('?') ? '&' : '?';
+        return `${cleaned}${sep}_t=${Date.now()}`;
+      });
+      m.addSource(id, {
+        type: 'vector',
+        tiles: bustTiles,
+        minzoom: src.minzoom ?? 0,
+        maxzoom: src.maxzoom ?? 22,
+      });
+
+      // Re-add layers in original order
+      for (const l of layerSpecs) {
+        try { m.addLayer(l); } catch { /* ignore */ }
+      }
+    } else if (sourceDef.type === 'geojson') {
+      // For GeoJSON sources: trigger a data re-fetch by setting same data
+      const source = m.getSource(id) as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        const serialized = source.serialize();
+        if (serialized?.data) source.setData(serialized.data);
+      }
+    }
+  }
+
   // ─── Layers ─────────────────────────────────────────
 
   addLayer(spec: MapLayerSpec, beforeId?: string): void {

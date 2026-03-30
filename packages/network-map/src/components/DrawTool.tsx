@@ -422,10 +422,13 @@ export default function DrawTool({
       }
       // Also check buffer layers — a buffer overlay should not deselect
       // its owning figure. Map the buffer's _bufferDrawId back to the draw.
-      const bufferLayers = ['__buffer-layer', '__buffer-outline'];
-      const bufferHits = adapter.queryRenderedFeatures(e.point, bufferLayers) as {
-        properties: Record<string, unknown>;
-      }[];
+      // Guard: only query buffer layers that actually exist on the map.
+      const bufferLayers = ['__buffer-layer', '__buffer-outline'].filter((id) => adapter.hasLayer(id));
+      const bufferHits = bufferLayers.length > 0
+        ? adapter.queryRenderedFeatures(e.point, bufferLayers) as {
+            properties: Record<string, unknown>;
+          }[]
+        : [];
       if (bufferHits.length > 0) {
         const ownerId = bufferHits[0].properties._bufferDrawId as string | undefined;
         if (ownerId) {

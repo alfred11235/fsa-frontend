@@ -38,6 +38,8 @@ export interface MapAdapter {
   addRasterSource(id: string, tiles: string[], options?: RasterSourceOptions): void;
   removeSource(id: string): void;
   hasSource(id: string): boolean;
+  /** Force a source to re-fetch all tiles (useful after data mutations on MVT sources). */
+  refreshSource(id: string): void;
 
   // ─── Layers ─────────────────────────────────────────
   addLayer(spec: MapLayerSpec, beforeId?: string): void;
