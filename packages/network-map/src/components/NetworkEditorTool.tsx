@@ -9,10 +9,13 @@ import {
   Save,
   Loader2,
   Edit3,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { useMap } from '../context/MapContext';
 import { topoNetworkApi } from '@fsa/shared-api';
 import type { GeographicPointType, PointRequest, WireRequest } from '@fsa/shared-api';
+import { useEditorHistory } from '../hooks/useEditorHistory';
 
 // ─── Field configuration types ──────────────────────────────────
 
@@ -124,6 +127,14 @@ export default function NetworkEditorTool({
   const pointFields = mergeFields(DEFAULT_POINT_FIELDS, pointFieldsOverride);
   const wireFields = mergeFields(DEFAULT_WIRE_FIELDS, wireFieldsOverride);
 
+  // ── Editor history (undo/redo) ──
+  // refreshMapSources is defined further down; we use a ref to break the circular dependency.
+  const refreshAfterHistoryRef = useRef<() => void>(() => {});
+  const history = useEditorHistory(() => {
+    refreshAfterHistoryRef.current();
+    onDataChangedRef.current?.();
+  });
+
   const [mode, setMode] = useState<EditorMode>('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,6 +157,7 @@ export default function NetworkEditorTool({
   const draggingRef = useRef(false);
   const dragPointIdRef = useRef<number | null>(null);
   const dragCoordRef = useRef<[number, number] | null>(null);
+  const dragOldCoordRef = useRef<[number, number] | null>(null); // original position for undo
   const [dragPreview, setDragPreview] = useState<[number, number] | null>(null);
 
   // ── Wire drag state (add-wire & edit-wire) ──
@@ -420,6 +432,7 @@ export default function NetworkEditorTool({
       draggingRef.current = true;
       dragPointIdRef.current = featureId;
       dragCoordRef.current = [e.lngLat.lng, e.lngLat.lat];
+      dragOldCoordRef.current = [e.lngLat.lng, e.lngLat.lat]; // capture original position for undo
       setDragPreview([e.lngLat.lng, e.lngLat.lat]);
       adapter.setCursor('grabbing');
     };
@@ -637,6 +650,9 @@ export default function NetworkEditorTool({
     }
   }, [getAdapter, invalidateLayer]);
 
+  // Wire the history callback to refreshMapSources (breaks circular dep)
+  refreshAfterHistoryRef.current = refreshMapSources;
+
   const handleSavePoint = useCallback(async () => {
     if (!pendingCoord) return;
     setLoading(true);
@@ -647,7 +663,9 @@ export default function NetworkEditorTool({
         lat: pendingCoord[1],
         ...pointForm,
       };
-      await topoNetworkApi.createGeographicPoint(data);
+      const res = await topoNetworkApi.createGeographicPoint(data);
+      const createdId = (res.data as Record<string, unknown>).id as number;
+      history.push({ type: 'create-point', createdId, requestData: data });
       setPendingCoord(null);
       setPointForm({});
       refreshMapSources();
@@ -657,13 +675,17 @@ export default function NetworkEditorTool({
     } finally {
       setLoading(false);
     }
-  }, [pendingCoord, pointForm, refreshMapSources]);
+  }, [pendingCoord, pointForm, refreshMapSources, history]);
 
   const handleDeletePoint = useCallback(async (id: number) => {
     setLoading(true);
     setError(null);
     try {
+      // Fetch snapshot before deleting (needed for undo)
+      const snapRes = await topoNetworkApi.getGeographicPoint(id);
+      const snapshot = snapRes.data as Record<string, unknown>;
       await topoNetworkApi.deleteGeographicPoint(id);
+      history.push({ type: 'delete-point', deletedId: id, snapshot });
       refreshMapSources();
       onDataChangedRef.current?.();
     } catch (err: unknown) {
@@ -671,13 +693,26 @@ export default function NetworkEditorTool({
     } finally {
       setLoading(false);
     }
-  }, [refreshMapSources]);
+  }, [refreshMapSources, history]);
 
   const handleMovePoint = useCallback(async (id: number, lng: number, lat: number) => {
     setLoading(true);
     setError(null);
     try {
+      // Capture old coords from the drag start ref
+      const oldCoord = dragOldCoordRef.current;
       await topoNetworkApi.updateGeographicPoint(id, { lng, lat });
+      if (oldCoord) {
+        history.push({
+          type: 'move-point',
+          pointId: id,
+          oldLng: oldCoord[0],
+          oldLat: oldCoord[1],
+          newLng: lng,
+          newLat: lat,
+        });
+      }
+      dragOldCoordRef.current = null;
       refreshMapSources();
       onDataChangedRef.current?.();
     } catch (err: unknown) {
@@ -685,7 +720,7 @@ export default function NetworkEditorTool({
     } finally {
       setLoading(false);
     }
-  }, [refreshMapSources]);
+  }, [refreshMapSources, history]);
 
   const handleSaveWire = useCallback(async () => {
     if (!wireStartPointId || !wireEndPointId) return;
@@ -697,11 +732,15 @@ export default function NetworkEditorTool({
         geographicPointEndId: wireEndPointId,
         ...wireForm,
       };
+      let createdId: number;
       if (wireType === 'mt') {
-        await topoNetworkApi.createMTWire(data);
+        const res = await topoNetworkApi.createMTWire(data);
+        createdId = (res.data as Record<string, unknown>).id as number;
       } else {
-        await topoNetworkApi.createLTWire(data);
+        const res = await topoNetworkApi.createLTWire(data);
+        createdId = (res.data as Record<string, unknown>).id as number;
       }
+      history.push({ type: 'create-wire', wireType, createdId, requestData: data });
       setWireStartPointId(null);
       setWireEndPointId(null);
       setPendingCoord(null);
@@ -713,17 +752,24 @@ export default function NetworkEditorTool({
     } finally {
       setLoading(false);
     }
-  }, [wireStartPointId, wireEndPointId, wireType, wireForm, refreshMapSources]);
+  }, [wireStartPointId, wireEndPointId, wireType, wireForm, refreshMapSources, history]);
 
   const handleDeleteWire = useCallback(async (id: number, type: WireType) => {
     setLoading(true);
     setError(null);
     try {
+      // Fetch snapshot before deleting (needed for undo)
+      let snapshot: Record<string, unknown>;
       if (type === 'mt') {
+        const snapRes = await topoNetworkApi.getMTWire(id);
+        snapshot = snapRes.data as Record<string, unknown>;
         await topoNetworkApi.deleteMTWire(id);
       } else {
+        const snapRes = await topoNetworkApi.getLTWire(id);
+        snapshot = snapRes.data as Record<string, unknown>;
         await topoNetworkApi.deleteLTWire(id);
       }
+      history.push({ type: 'delete-wire', wireType: type, deletedId: id, snapshot });
       refreshMapSources();
       onDataChangedRef.current?.();
     } catch (err: unknown) {
@@ -731,12 +777,23 @@ export default function NetworkEditorTool({
     } finally {
       setLoading(false);
     }
-  }, [refreshMapSources]);
+  }, [refreshMapSources, history]);
 
   const handleEditWireDrop = useCallback(async (wireId: number, wType: WireType, endpoint: 'start' | 'end', newPointId: number) => {
     setLoading(true);
     setError(null);
     try {
+      // Fetch the wire to get the old endpoint point ID before updating
+      let oldPointId: number;
+      if (wType === 'mt') {
+        const snapRes = await topoNetworkApi.getMTWire(wireId);
+        const snap = snapRes.data as Record<string, unknown>;
+        oldPointId = (endpoint === 'start' ? snap.geographicPointStartId : snap.geographicPointEndId) as number;
+      } else {
+        const snapRes = await topoNetworkApi.getLTWire(wireId);
+        const snap = snapRes.data as Record<string, unknown>;
+        oldPointId = (endpoint === 'start' ? snap.geographicPointStartId : snap.geographicPointEndId) as number;
+      }
       const payload: Partial<WireRequest> = endpoint === 'start'
         ? { geographicPointStartId: newPointId }
         : { geographicPointEndId: newPointId };
@@ -745,6 +802,7 @@ export default function NetworkEditorTool({
       } else {
         await topoNetworkApi.updateLTWire(wireId, payload);
       }
+      history.push({ type: 'edit-wire', wireType: wType, wireId, endpoint, oldPointId, newPointId });
       refreshMapSources();
       onDataChangedRef.current?.();
     } catch (err: unknown) {
@@ -752,7 +810,7 @@ export default function NetworkEditorTool({
     } finally {
       setLoading(false);
     }
-  }, [refreshMapSources]);
+  }, [refreshMapSources, history]);
 
   const cancel = useCallback(() => {
     setMode('none');
@@ -770,6 +828,36 @@ export default function NetworkEditorTool({
     cancel();
     setMode(m);
   }, [cancel]);
+
+  // ── Undo / Redo handlers ──
+
+  const handleUndo = useCallback(async () => {
+    if (!history.canUndo || history.busy) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const ok = await history.undo();
+      if (!ok) setError('Undo failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Undo failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [history]);
+
+  const handleRedo = useCallback(async () => {
+    if (!history.canRedo || history.busy) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const ok = await history.redo();
+      if (!ok) setError('Redo failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Redo failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [history]);
 
   // ─── Field helper: render a configurable field ───────────────
 
@@ -1147,6 +1235,27 @@ export default function NetworkEditorTool({
         title="Delete wire"
       >
         <Trash2 size={14} />
+      </button>
+
+      {/* Divider */}
+      <div className="my-0.5 h-px bg-gray-200" />
+
+      {/* Undo / Redo */}
+      <button
+        onClick={handleUndo}
+        disabled={!history.canUndo || history.busy || loading}
+        className={`${btnBase} ${history.canUndo ? btnNormal : 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed'}`}
+        title={history.canUndo ? `Undo (${history.undoStack.length})` : 'Nothing to undo'}
+      >
+        <Undo2 size={14} />
+      </button>
+      <button
+        onClick={handleRedo}
+        disabled={!history.canRedo || history.busy || loading}
+        className={`${btnBase} ${history.canRedo ? btnNormal : 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed'}`}
+        title={history.canRedo ? `Redo (${history.redoStack.length})` : 'Nothing to redo'}
+      >
+        <Redo2 size={14} />
       </button>
     </div>
   );
