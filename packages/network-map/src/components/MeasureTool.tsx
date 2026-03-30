@@ -1,22 +1,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Ruler, X } from 'lucide-react';
 import { useMap } from '../context/MapContext';
+import CollapsibleToolbar from './CollapsibleToolbar';
 
 type MeasureMode = 'none' | 'distance' | 'area';
 
 interface MeasureToolProps {
   position?: 'top-left' | 'top-right';
   style?: React.CSSProperties;
+  defaultCollapsed?: boolean;
 }
 
-export default function MeasureTool({ position = 'top-right', style }: MeasureToolProps) {
+export default function MeasureTool({ position = 'top-right', style, defaultCollapsed = false }: MeasureToolProps) {
   const { getAdapter, isReady } = useMap();
   const [mode, setMode] = useState<MeasureMode>('none');
   const [points, setPoints] = useState<[number, number][]>([]);
   const [result, setResult] = useState<string>('');
   const sourceAdded = useRef(false);
 
-  const posClass = position === 'top-left' ? 'left-4' : 'right-4';
+  // positioning handled by CollapsibleToolbar
 
   // Add/remove measure source and layers
   useEffect(() => {
@@ -178,7 +180,13 @@ export default function MeasureTool({ position = 'top-right', style }: MeasureTo
   }, []);
 
   return (
-    <div className={`absolute ${posClass} z-10 flex flex-col gap-1`} style={style}>
+    <CollapsibleToolbar
+      title="Medir"
+      icon={<Ruler size={14} />}
+      defaultCollapsed={defaultCollapsed}
+      position={position}
+      style={style}
+    >
       {mode === 'none' ? (
         <>
           <button
@@ -222,7 +230,7 @@ export default function MeasureTool({ position = 'top-right', style }: MeasureTo
           )}
         </div>
       )}
-    </div>
+    </CollapsibleToolbar>
   );
 }
 

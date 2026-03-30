@@ -20,7 +20,7 @@ interface SearchBarProps {
 
 export default function SearchBar({
   placeholder = 'Search features...',
-  searchEndpoint = '/api/network-map/spatial/search',
+  searchEndpoint = '/network-map/spatial/search',
   onSelect,
 }: SearchBarProps) {
   const { getAdapter } = useMap();
@@ -55,8 +55,7 @@ export default function SearchBar({
     (result: SearchResult) => {
       const adapter = getAdapter();
       if (adapter && result.center) {
-        adapter.setCenter(result.center, true);
-        if (result.zoom) adapter.setZoom(result.zoom, true);
+        adapter.flyTo(result.center, result.zoom ?? 16);
       }
       setOpen(false);
       setQuery(result.label);

@@ -2,12 +2,14 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Group, Ungroup } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import { useMap } from '../context/MapContext';
+import CollapsibleToolbar from './CollapsibleToolbar';
 
 interface ClusterToggleProps {
   layerCode: string;
   label?: string;
   position?: 'top-left' | 'top-right';
   style?: React.CSSProperties;
+  defaultCollapsed?: boolean;
 }
 
 export default function ClusterToggle({
@@ -15,6 +17,7 @@ export default function ClusterToggle({
   label = 'Clusters',
   position = 'top-right',
   style,
+  defaultCollapsed = false,
 }: ClusterToggleProps) {
   const { getAdapter, isReady } = useMap();
   const [clustered, setClustered] = useState(true);
@@ -65,7 +68,7 @@ export default function ClusterToggle({
     return () => clearTimeout(timer);
   }, [isReady, getAdapter, layerCode]);
 
-  const positionClass = position === 'top-left' ? 'left-4' : 'right-4';
+  // positioning handled by CollapsibleToolbar
 
   const toggle = useCallback(() => {
     const adapter = getAdapter();
@@ -177,7 +180,13 @@ export default function ClusterToggle({
   if (!isReady) return null;
 
   return (
-    <div className={`absolute ${positionClass} z-10`} style={style}>
+    <CollapsibleToolbar
+      title="Clusters"
+      icon={<Group size={14} />}
+      defaultCollapsed={defaultCollapsed}
+      position={position}
+      style={style}
+    >
       <button
         onClick={toggle}
         className={`flex h-10 items-center gap-2 rounded-lg border px-3 shadow-md transition-colors ${
@@ -190,6 +199,6 @@ export default function ClusterToggle({
         {clustered ? <Ungroup size={18} /> : <Group size={18} />}
         <span className="text-xs font-medium">{clustered ? label : 'Puntos'}</span>
       </button>
-    </div>
+    </CollapsibleToolbar>
   );
 }

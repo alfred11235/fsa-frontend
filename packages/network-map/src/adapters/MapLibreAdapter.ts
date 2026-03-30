@@ -150,6 +150,10 @@ export class MapLibreAdapter implements MapAdapter {
     }
   }
 
+  flyTo(center: [number, number], zoom?: number): void {
+    this.requireMap().flyTo({ center, zoom: zoom ?? this.requireMap().getZoom() });
+  }
+
   // ─── Sources ────────────────────────────────────────
 
   addGeoJSONSource(id: string, data: FeatureCollection, options?: GeoJSONSourceOptions): void {

@@ -30,6 +30,7 @@ export interface MapAdapter {
   fitBounds(bounds: LngLatBounds, padding?: number): void;
   setBearing(bearing: number, animate?: boolean): void;
   setPitch(pitch: number, animate?: boolean): void;
+  flyTo(center: [number, number], zoom?: number): void;
 
   // ─── Sources ────────────────────────────────────────
   addGeoJSONSource(id: string, data: FeatureCollection, options?: GeoJSONSourceOptions): void;

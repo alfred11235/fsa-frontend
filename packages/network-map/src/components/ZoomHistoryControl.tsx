@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useReducer } from 'react';
-import { Undo2, Redo2, Home } from 'lucide-react';
+import { Undo2, Redo2, Home, Navigation } from 'lucide-react';
 import { useMap } from '../context/MapContext';
+import CollapsibleToolbar from './CollapsibleToolbar';
 
 interface ViewSnapshot {
   center: [number, number];
@@ -49,11 +50,13 @@ function historyReducer(state: HistoryState, action: HistoryAction): HistoryStat
 interface ZoomHistoryControlProps {
   position?: 'top-left' | 'top-right';
   style?: React.CSSProperties;
+  defaultCollapsed?: boolean;
 }
 
 export default function ZoomHistoryControl({
   position = 'top-left',
   style,
+  defaultCollapsed = false,
 }: ZoomHistoryControlProps) {
   const { getAdapter, isReady } = useMap();
   const [state, dispatch] = useReducer(historyReducer, { entries: [], cursor: -1 });
@@ -61,7 +64,7 @@ export default function ZoomHistoryControl({
   const navigatingRef = useRef(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const posClass = position === 'top-left' ? 'left-4' : 'right-4';
+  // positioning handled by CollapsibleToolbar
 
   // Capture initial view + listen for user-initiated view changes
   useEffect(() => {
@@ -137,7 +140,13 @@ export default function ZoomHistoryControl({
   const btnDisabled = 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed';
 
   return (
-    <div className={`absolute ${posClass} z-10 flex flex-col gap-1`} style={style}>
+    <CollapsibleToolbar
+      title="Navega\u00e7\u00e3o"
+      icon={<Navigation size={14} />}
+      defaultCollapsed={defaultCollapsed}
+      position={position}
+      style={style}
+    >
       <button
         onClick={handlePrev}
         disabled={!canPrev}
@@ -161,6 +170,6 @@ export default function ZoomHistoryControl({
       >
         <Redo2 size={16} />
       </button>
-    </div>
+    </CollapsibleToolbar>
   );
 }

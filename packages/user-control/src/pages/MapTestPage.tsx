@@ -371,7 +371,7 @@ export default function MapTestPage() {
             <MeasureTool position="top-right" style={{ top: 220 }} />
             <ClusterToggle layerCode="geographic-points" label="Clusters" position="top-right" style={{ top: 310 }} />
             <BufferTool position="top-right" style={{ top: 355 }} radiusOptions={[50, 100, 200, 500]} selectedDrawId={selectedDrawId} selectedDrawGeometry={selectedDrawGeometry} clearBufferRef={clearBufferRef} />
-            <DrawTool position="top-right" style={{ top: 400 }} onDrawComplete={handleDrawComplete} onFeatureDeleted={handleFeatureDeleted} onSelectionChange={handleSelectionChange} onSpatialQuery={handleSpatialQuery} />
+            <DrawTool position="top-right" style={{ top: 400 }} onDrawComplete={handleDrawComplete} onFeatureDeleted={handleFeatureDeleted} onSelectionChange={handleSelectionChange} onSpatialQuery={handleSpatialQuery} clearBufferRef={clearBufferRef} />
             <ZoomHistoryControl position="top-right" style={{ top: 600 }} />
             <NetworkEditorTool
               position="top-left"

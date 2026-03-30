@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Pencil, Circle, Minus, Pentagon, X, Trash2 } from 'lucide-react';
 import { useMap } from '../context/MapContext';
 import type { DrawMode } from '../types/map';
+import CollapsibleToolbar from './CollapsibleToolbar';
 
 interface DrawToolProps {
   position?: 'top-left' | 'top-right';
@@ -15,6 +16,9 @@ interface DrawToolProps {
   onSpatialQuery?: (drawnGeometry: GeoJSON.Geometry, featuresInArea: GeoJSON.Feature[]) => void;
   /** Layer IDs to include in spatial queries. If empty/undefined, queries all visible data layers. */
   spatialQueryLayers?: string[];
+  defaultCollapsed?: boolean;
+  /** Ref to BufferTool's clearBuffer function — enables direct buffer cleanup during deletion */
+  clearBufferRef?: React.MutableRefObject<((drawId?: string) => void) | null>;
 }
 
 const DRAW_SOURCE = '__draw-active';
@@ -27,11 +31,13 @@ let featureIdCounter = 0;
 export default function DrawTool({
   position = 'top-right',
   style,
+  defaultCollapsed = false,
   onDrawComplete,
   onFeatureDeleted,
   onSelectionChange,
   onSpatialQuery,
   spatialQueryLayers,
+  clearBufferRef,
 }: DrawToolProps) {
   const { getAdapter, isReady } = useMap();
   const [mode, setMode] = useState<DrawMode | 'none'>('none');
@@ -448,6 +454,8 @@ export default function DrawTool({
     if (!selectedId) return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Clear associated buffer first (synchronous, before state updates)
+        clearBufferRef?.current?.(selectedId);
         setCompletedFeatures((prev) => prev.filter((f) => f.properties?._drawId !== selectedId));
         onFeatureDeletedRef.current?.(selectedId);
         setSelectedId(null);
@@ -458,7 +466,7 @@ export default function DrawTool({
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedId]);
+  }, [selectedId, clearBufferRef]);
 
   const start = useCallback((m: DrawMode) => {
     setPoints([]);
@@ -474,10 +482,12 @@ export default function DrawTool({
 
   const deleteSelected = useCallback(() => {
     if (!selectedId) return;
+    // Clear associated buffer first (synchronous, before state updates)
+    clearBufferRef?.current?.(selectedId);
     setCompletedFeatures((prev) => prev.filter((f) => f.properties?._drawId !== selectedId));
     onFeatureDeletedRef.current?.(selectedId);
     setSelectedId(null);
-  }, [selectedId]);
+  }, [selectedId, clearBufferRef]);
 
   if (mode !== 'none') {
     return (
@@ -503,7 +513,13 @@ export default function DrawTool({
   }
 
   return (
-    <div className={`absolute ${posClass} z-10 flex flex-col gap-1`} style={style}>
+    <CollapsibleToolbar
+      title="Desenho"
+      icon={<Pencil size={14} />}
+      defaultCollapsed={defaultCollapsed}
+      position={position}
+      style={style}
+    >
       <button
         onClick={() => start('point')}
         className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white shadow-md hover:bg-gray-50"
@@ -541,7 +557,7 @@ export default function DrawTool({
           <Trash2 size={14} className="text-red-600" />
         </button>
       )}
-    </div>
+    </CollapsibleToolbar>
   );
 }
 

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useMap } from '../context/MapContext';
 import { topoNetworkApi } from '@fsa/shared-api';
+import CollapsibleToolbar from './CollapsibleToolbar';
 import type { GeographicPointType, PointRequest, WireRequest } from '@fsa/shared-api';
 import { useEditorHistory } from '../hooks/useEditorHistory';
 
@@ -64,6 +65,7 @@ interface NetworkEditorToolProps {
   refreshSourceIds?: string[];
   /** Wire layer codes to query for existing wires when editing/deleting */
   wireLayerCodes?: string[];
+  defaultCollapsed?: boolean;
 }
 
 // ─── Constants ──────────────────────────────────────────────────
@@ -121,6 +123,7 @@ export default function NetworkEditorTool({
   pointLayerCodes,
   refreshSourceIds,
   wireLayerCodes,
+  defaultCollapsed = false,
 }: NetworkEditorToolProps) {
   const { getAdapter, isReady, invalidateLayer } = useMap();
 
@@ -1187,7 +1190,13 @@ export default function NetworkEditorTool({
   const btnNormal = 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50';
 
   return (
-    <div className={`absolute ${posClass} z-10 flex flex-col gap-1`} style={style}>
+    <CollapsibleToolbar
+      title="Editor"
+      icon={<Edit3 size={14} />}
+      defaultCollapsed={defaultCollapsed}
+      position={position}
+      style={style}
+    >
       {/* Points section */}
       <button
         onClick={() => startMode('add-point')}
@@ -1257,6 +1266,6 @@ export default function NetworkEditorTool({
       >
         <Redo2 size={14} />
       </button>
-    </div>
+    </CollapsibleToolbar>
   );
 }

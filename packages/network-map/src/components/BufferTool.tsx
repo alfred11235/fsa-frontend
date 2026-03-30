@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Circle } from 'lucide-react';
 import { useMap } from '../context/MapContext';
 import { apiClient } from '@fsa/shared-api';
+import CollapsibleToolbar from './CollapsibleToolbar';
 
 const BUFFER_SOURCE = '__buffer-source';
 const BUFFER_LAYER = '__buffer-layer';
@@ -24,6 +25,7 @@ interface BufferToolProps {
   selectedDrawGeometry?: GeoJSON.Geometry | null;
   /** Ref callback: receives a function to clear a specific buffer by drawId, or all if no id */
   clearBufferRef?: React.MutableRefObject<((drawId?: string) => void) | null>;
+  defaultCollapsed?: boolean;
 }
 
 export default function BufferTool({
@@ -33,6 +35,7 @@ export default function BufferTool({
   selectedDrawId,
   selectedDrawGeometry,
   clearBufferRef: externalClearRef,
+  defaultCollapsed = false,
 }: BufferToolProps) {
   const { selectedFeature, getAdapter } = useMap();
   const [open, setOpen] = useState(false);
@@ -41,7 +44,7 @@ export default function BufferTool({
   const [buffers, setBuffers] = useState<BufferEntry[]>([]);
   const sourceAdded = useRef(false);
 
-  const positionClass = position === 'top-left' ? 'left-4' : 'right-4';
+  // positioning handled by CollapsibleToolbar
 
   const canActivate = !!selectedFeature || !!selectedDrawGeometry;
 
@@ -163,7 +166,13 @@ export default function BufferTool({
   }, [selectedDrawId, selectedFeature, clearBuffer]);
 
   return (
-    <div className={`absolute ${positionClass} z-10`} style={style}>
+    <CollapsibleToolbar
+      title="Buffer"
+      icon={<Circle size={14} />}
+      defaultCollapsed={defaultCollapsed}
+      position={position}
+      style={style}
+    >
       <button
         onClick={() => setOpen(!open)}
         disabled={!canActivate}
@@ -207,7 +216,7 @@ export default function BufferTool({
           )}
         </div>
       )}
-    </div>
+    </CollapsibleToolbar>
   );
 }
 
