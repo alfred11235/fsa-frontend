@@ -66,6 +66,10 @@ interface NetworkEditorToolProps {
   /** Wire layer codes to query for existing wires when editing/deleting */
   wireLayerCodes?: string[];
   defaultCollapsed?: boolean;
+  /** ID of the current user — undo/redo is scoped per user */
+  userId: number;
+  /** Maximum number of undo entries stored per user (default 50) */
+  maxHistoryEntries?: number;
 }
 
 // ─── Constants ──────────────────────────────────────────────────
@@ -124,6 +128,8 @@ export default function NetworkEditorTool({
   refreshSourceIds,
   wireLayerCodes,
   defaultCollapsed = false,
+  userId,
+  maxHistoryEntries = 50,
 }: NetworkEditorToolProps) {
   const { getAdapter, isReady, invalidateLayer } = useMap();
 
@@ -133,7 +139,7 @@ export default function NetworkEditorTool({
   // ── Editor history (undo/redo) ──
   // refreshMapSources is defined further down; we use a ref to break the circular dependency.
   const refreshAfterHistoryRef = useRef<() => void>(() => {});
-  const history = useEditorHistory(() => {
+  const history = useEditorHistory({ userId, maxEntries: maxHistoryEntries }, () => {
     refreshAfterHistoryRef.current();
     onDataChangedRef.current?.();
   });
@@ -1254,7 +1260,7 @@ export default function NetworkEditorTool({
         onClick={handleUndo}
         disabled={!history.canUndo || history.busy || loading}
         className={`${btnBase} ${history.canUndo ? btnNormal : 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed'}`}
-        title={history.canUndo ? `Undo (${history.undoStack.length})` : 'Nothing to undo'}
+        title={history.canUndo ? `Undo (${history.undoCount})` : 'Nothing to undo'}
       >
         <Undo2 size={14} />
       </button>
@@ -1262,7 +1268,7 @@ export default function NetworkEditorTool({
         onClick={handleRedo}
         disabled={!history.canRedo || history.busy || loading}
         className={`${btnBase} ${history.canRedo ? btnNormal : 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed'}`}
-        title={history.canRedo ? `Redo (${history.redoStack.length})` : 'Nothing to redo'}
+        title={history.canRedo ? `Redo (${history.redoCount})` : 'Nothing to redo'}
       >
         <Redo2 size={14} />
       </button>

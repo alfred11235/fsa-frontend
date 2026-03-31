@@ -67,4 +67,30 @@ export const topoNetworkApi = {
     apiClient.delete(`/wires/lt/${id}`),
   getLTWire: (id: number) =>
     apiClient.get(`/wires/lt/${id}`),
+
+  // Editor History
+  recordEditorAction: (data: {
+    userId: number;
+    actionType: string;
+    entityType: string;
+    entityId: number | null;
+    beforeData: Record<string, unknown> | null;
+    afterData: Record<string, unknown> | null;
+    maxEntries?: number;
+  }) => apiClient.post('/editor-history/record', data),
+
+  undoEditorAction: (userId: number) =>
+    apiClient.post('/editor-history/undo', null, { params: { userId } }),
+
+  redoEditorAction: (userId: number) =>
+    apiClient.post('/editor-history/redo', null, { params: { userId } }),
+
+  updateEditorHistoryEntityId: (historyId: number, newEntityId: number) =>
+    apiClient.patch(`/editor-history/${historyId}/entity-id`, null, { params: { newEntityId } }),
+
+  getEditorHistoryStatus: (userId: number) =>
+    apiClient.get<{ undoCount: number; redoCount: number }>('/editor-history/status', { params: { userId } }),
+
+  getEditorHistory: (userId: number, limit?: number) =>
+    apiClient.get('/editor-history', { params: { userId, limit: limit ?? 50 } }),
 };

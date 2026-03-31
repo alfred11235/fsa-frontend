@@ -376,6 +376,8 @@ export default function MapTestPage() {
             <NetworkEditorTool
               position="top-left"
               style={{ top: 200 }}
+              userId={1}
+              maxHistoryEntries={50}
               pointFields={{
                 geographicPointTypeId: { visible: true, required: true, label: 'Tipo de Poste' },
                 basement: { visible: true, required: false, label: 'Base' },
