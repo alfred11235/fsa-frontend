@@ -152,6 +152,15 @@ export const userControlApi = {
   updateRolePolicies: (roleId: number, policyIds: number[]) =>
     apiClient.put(`/access-control/role-policies/${roleId}`, policyIds),
 
+  // Categories
+  getCategories: (params?: Record<string, unknown>) =>
+    apiClient.get('/categories', { params }),
+  getCategory: (id: number) => apiClient.get(`/categories/${id}`),
+  createCategory: (data: Record<string, unknown>) =>
+    apiClient.post('/categories', data),
+  updateCategory: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/categories/${id}`, data),
+
   // User Flows
   getUserFlows: (params?: Record<string, unknown>) =>
     apiClient.get('/user-flows', { params }),

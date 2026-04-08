@@ -26,6 +26,7 @@ import {
   SystemFlowsPage,
   HistoriesPage,
   MapTestPage,
+  CategoriesPage,
 } from '@fsa/user-control';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -77,6 +78,7 @@ export default function App() {
         {/* Módulos de Sistema */}
         <Route path="modulos-de-sistema" element={<SystemModulesPage />} />
         <Route path="fluxos-de-sistema" element={<SystemFlowsPage />} />
+        <Route path="categorias" element={<CategoriesPage />} />
         <Route path="teste-de-mapa" element={<MapTestPage />} />
 
         {/* Auditoria */}

@@ -4,13 +4,11 @@ import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, GitBranch, Network } from 'lucide-react';
 import FlowEditorPage from './FlowEditorPage';
 
-interface SystemModule { id: number; code: string; description: string }
-interface UserFlow { id: number; code: string; description: string; systemModuleId: number | null; isActive: boolean }
-const empty: Partial<UserFlow> = { code: '', description: '', systemModuleId: null, isActive: true };
+interface UserFlow { id: number; code: string; description: string; isActive: boolean }
+const empty: Partial<UserFlow> = { code: '', description: '', isActive: true };
 
 export default function SystemFlowsPage() {
   const [data, setData] = useState<UserFlow[]>([]);
-  const [modules, setModules] = useState<SystemModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -22,12 +20,8 @@ export default function SystemFlowsPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([
-      userControlApi.getUserFlows({ page: 0, size: 100000, sort: 'id,asc' }),
-      userControlApi.getSystemModules({ page: 0, size: 100000 }),
-    ]).then(([flowRes, modRes]) => {
+    userControlApi.getUserFlows({ page: 0, size: 100000, sort: 'id,asc' }).then((flowRes) => {
       setData(flowRes.data?.content ?? flowRes.data ?? []);
-      setModules(modRes.data?.content ?? modRes.data ?? []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -47,11 +41,6 @@ export default function SystemFlowsPage() {
     } catch { toast.error('Erro ao salvar fluxo.'); } finally { setSaving(false); }
   };
 
-  const moduleName = (row: Record<string, unknown>) => {
-    const mod = modules.find(m => m.id === row.systemModuleId);
-    return mod ? mod.code : '—';
-  };
-
   const activeBadge = (row: Record<string, unknown>) => {
     const active = row.isActive as boolean;
     return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{active ? 'Ativo' : 'Inativo'}</span>;
@@ -68,7 +57,6 @@ export default function SystemFlowsPage() {
         columns={[
           { key: 'code', header: 'Código', sortable: true, minWidth: '150px' },
           { key: 'description', header: 'Descrição', sortable: true, minWidth: '200px' },
-          { key: 'systemModuleId', header: 'Módulo', sortable: true, minWidth: '150px', render: moduleName },
           { key: 'isActive', header: 'Ativo', sortable: true, minWidth: '80px', render: activeBadge },
         ]}
         data={data as unknown as Record<string, unknown>[]}
@@ -92,14 +80,6 @@ export default function SystemFlowsPage() {
             <label className="mb-1 block text-sm font-medium text-gray-700">Descrição</label>
             <input maxLength={200} value={editing.description ?? ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Módulo de Sistema *</label>
-            <select required value={editing.systemModuleId ?? ''} onChange={(e) => setEditing({ ...editing, systemModuleId: e.target.value ? Number(e.target.value) : null })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
-              <option value="">Selecione...</option>
-              {modules.map(m => <option key={m.id} value={m.id}>{m.code} — {m.description}</option>)}
-            </select>
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={editing.isActive ?? true} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
