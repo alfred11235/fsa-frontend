@@ -93,4 +93,12 @@ export const topoNetworkApi = {
 
   getEditorHistory: (userId: number, limit?: number) =>
     apiClient.get('/editor-history', { params: { userId, limit: limit ?? 50 } }),
+
+  // Geographic Point Pictures
+  getPointPictures: (pointId: number) =>
+    apiClient.get(`/geographic-point-pictures/by-point/${pointId}`),
+  createPointPicture: (data: Record<string, unknown>) =>
+    apiClient.post('/geographic-point-pictures', data),
+  deletePointPicture: (id: number) =>
+    apiClient.delete(`/geographic-point-pictures/${id}`),
 };

@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
-import { userControlApi } from '@fsa/shared-api';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { userControlApi, fileApi } from '@fsa/shared-api';
 import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
-import { Plus, Pencil, Tag } from 'lucide-react';
+import { Plus, Pencil, Tag, Upload } from 'lucide-react';
 
 interface SystemModule { id: number; code: string; description: string }
 interface UserFlowOption { id: number; code: string; description: string }
@@ -98,6 +98,25 @@ export default function CategoriesPage() {
     return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{active ? 'Ativo' : 'Inativo'}</span>;
   };
 
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const res = await fileApi.upload(file, 'category-icons');
+      setEditing({ ...editing, iconUrl: res.data.url });
+      toast.success('Ícone enviado com sucesso.');
+    } catch {
+      toast.error('Erro ao enviar ícone.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const selectedModuleId = (editing.systemModule as { id: number } | null)?.id ?? '';
   const currentIconUrl = (editing.iconUrl as string) ?? '';
 
@@ -135,16 +154,22 @@ export default function CategoriesPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">URL do Ícone</label>
-            <input maxLength={1000} value={currentIconUrl} onChange={(e) => setEditing({ ...editing, iconUrl: e.target.value })}
-              placeholder="https://..."
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
-            {currentIconUrl && (
-              <div className="mt-2 flex items-center gap-3 rounded-md border border-gray-200 bg-gray-50 p-3">
-                <img src={currentIconUrl} alt="Preview" className="h-12 w-12 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                <span className="truncate text-xs text-gray-500">{currentIconUrl}</span>
-              </div>
-            )}
+            <label className="mb-1 block text-sm font-medium text-gray-700">Ícone</label>
+            <div className="flex items-center gap-3">
+              <button type="button" disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                <Upload size={14} /> {uploading ? 'Enviando...' : 'Enviar imagem'}
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleIconUpload} />
+              {currentIconUrl && (
+                <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                  <img src={currentIconUrl} alt="Preview" className="h-8 w-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <span className="max-w-[200px] truncate text-xs text-gray-500">{currentIconUrl.split('/').pop()}</span>
+                  <button type="button" onClick={() => setEditing({ ...editing, iconUrl: '' })} className="text-xs text-red-500 hover:text-red-700">✕</button>
+                </div>
+              )}
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Módulo de Sistema *</label>
