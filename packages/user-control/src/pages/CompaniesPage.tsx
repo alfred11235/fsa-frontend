@@ -15,14 +15,13 @@ interface Company {
   companyType: { id: number; code: string; description: string } | null;
   companyGroup: { id: number; code: string; description: string } | null;
   consortium: { id: number; code: string; description: string } | null;
-  municipality: { id: number; name: string; state?: { id: number; code?: string; description?: string } } | null;
 }
 
 interface SelectOption { id: number; code?: string; description?: string; name?: string }
 
 const emptyCompany: Partial<Company> = {
   name: '', description: '', email: '', phone: '', isActive: true,
-  companyType: null, companyGroup: null, consortium: null, municipality: null,
+  companyType: null, companyGroup: null, consortium: null,
 };
 
 export default function CompaniesPage() {
@@ -39,9 +38,6 @@ export default function CompaniesPage() {
   const [companyTypes, setCompanyTypes] = useState<SelectOption[]>([]);
   const [companyGroups, setCompanyGroups] = useState<SelectOption[]>([]);
   const [consortiums, setConsortiums] = useState<SelectOption[]>([]);
-  const [states, setStates] = useState<SelectOption[]>([]);
-  const [municipalities, setMunicipalities] = useState<SelectOption[]>([]);
-  const [selectedStateId, setSelectedStateId] = useState<number | ''>('');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -63,34 +59,10 @@ export default function CompaniesPage() {
     userControlApi.getConsortiums({ size: 1000 })
       .then((r) => setConsortiums(r.data?.content ?? []))
       .catch(() => {});
-    userControlApi.getStates({ size: 1000 })
-      .then((r) => setStates(r.data?.content ?? []))
-      .catch(() => {});
   };
 
-  const openAdd = () => { setEditing({ ...emptyCompany }); setSelectedStateId(''); setMunicipalities([]); loadDropdowns(); setModalOpen(true); };
-  const openEdit = (c: Company) => {
-    setEditing({ ...c });
-    loadDropdowns();
-    const stId = c.municipality?.state?.id;
-    if (stId) {
-      setSelectedStateId(stId);
-      userControlApi.getMunicipalitiesByState(stId)
-        .then((r) => setMunicipalities(r.data ?? []))
-        .catch(() => {});
-    } else {
-      setSelectedStateId('');
-      setMunicipalities([]);
-    }
-    setModalOpen(true);
-  };
-
-  const handleStateChange = (stateId: number) => {
-    setSelectedStateId(stateId);
-    userControlApi.getMunicipalitiesByState(stateId)
-      .then((r) => setMunicipalities(r.data ?? []))
-      .catch(() => {});
-  };
+  const openAdd = () => { setEditing({ ...emptyCompany }); loadDropdowns(); setModalOpen(true); };
+  const openEdit = (c: Company) => { setEditing({ ...c }); loadDropdowns(); setModalOpen(true); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +74,6 @@ export default function CompaniesPage() {
         companyType: editing.companyType ? { id: editing.companyType.id } : null,
         companyGroup: editing.companyGroup ? { id: editing.companyGroup.id } : null,
         consortium: editing.consortium ? { id: editing.consortium.id } : null,
-        municipality: editing.municipality ? { id: editing.municipality.id } : null,
       };
       if (editing.id) { await userControlApi.updateCompany(editing.id, payload); toast.success('Empresa atualizada com sucesso.'); }
       else { await userControlApi.createCompany(payload); toast.success('Empresa criada com sucesso.'); }
@@ -200,28 +171,6 @@ export default function CompaniesPage() {
               </select>
             </div>
           </div>
-          {editing.companyType?.code === 'Pre' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">State</label>
-                <select value={selectedStateId} onChange={(e) => handleStateChange(Number(e.target.value))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
-                  <option value="">Select...</option>
-                  {states.map((s) => <option key={s.id} value={s.id}>{s.description || s.code}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Municipality</label>
-                <select value={editing.municipality?.id ?? ''} onChange={(e) => {
-                  const m = municipalities.find((m) => m.id === Number(e.target.value));
-                  setEditing({ ...editing, municipality: m ? { id: m.id, name: m.name ?? '' } : null });
-                }} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
-                  <option value="">Select...</option>
-                  {municipalities.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </div>
-            </div>
-          )}
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={editing.isActive ?? true} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
               className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />

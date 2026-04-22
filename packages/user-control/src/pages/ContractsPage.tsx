@@ -3,6 +3,8 @@ import { userControlApi } from '@fsa/shared-api';
 import { DataTable, Button, Modal, useToast } from '@fsa/shared-ui';
 import { Plus, Pencil, FileText } from 'lucide-react';
 
+interface CategoryOption { id: number; code: string; description: string; iconUrl?: string | null }
+
 interface Contract {
   id: number;
   name: string;
@@ -10,16 +12,17 @@ interface Contract {
   startDate: string;
   endDate: string;
   isActive: boolean;
-  subCompanyId: number | null;
   company: { id: number; name: string } | null;
   systemModule: { id: number; code: string; description: string } | null;
+  municipality: { id: number; name: string; state?: { id: number; code?: string; description?: string } } | null;
+  categories: CategoryOption[];
 }
 
 interface SelectOption { id: number; name?: string; code?: string; description?: string }
 
 const empty: Partial<Contract> = {
   name: '', description: '', startDate: '', endDate: '', isActive: true,
-  company: null, systemModule: null, subCompanyId: null,
+  company: null, systemModule: null, municipality: null, categories: [],
 };
 
 export default function ContractsPage() {
@@ -35,6 +38,10 @@ export default function ContractsPage() {
 
   const [companies, setCompanies] = useState<SelectOption[]>([]);
   const [systemModules, setSystemModules] = useState<SelectOption[]>([]);
+  const [states, setStates] = useState<SelectOption[]>([]);
+  const [municipalities, setMunicipalities] = useState<SelectOption[]>([]);
+  const [selectedStateId, setSelectedStateId] = useState<number | ''>('');
+  const [availableCategories, setAvailableCategories] = useState<CategoryOption[]>([]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -50,14 +57,76 @@ export default function ContractsPage() {
     Promise.all([
       userControlApi.getCompanies({ size: 1000 }),
       userControlApi.getSystemModules({ size: 1000 }),
-    ]).then(([c, sm]) => {
+      userControlApi.getStates({ size: 1000 }),
+    ]).then(([c, sm, st]) => {
       setCompanies(c.data?.content ?? []);
       setSystemModules(sm.data?.content ?? []);
+      setStates(st.data?.content ?? []);
     });
   };
 
-  const openAdd = () => { setEditing({ ...empty }); loadDropdowns(); setModalOpen(true); };
-  const openEdit = (c: Contract) => { setEditing({ ...c }); loadDropdowns(); setModalOpen(true); };
+  const loadCategoriesForModule = (moduleId: number) => {
+    userControlApi.getCategoriesBySystemModule(moduleId)
+      .then((r) => setAvailableCategories(r.data ?? []))
+      .catch(() => setAvailableCategories([]));
+  };
+
+  const handleStateChange = (stateId: number) => {
+    setSelectedStateId(stateId);
+    userControlApi.getMunicipalitiesByState(stateId)
+      .then((r) => setMunicipalities(r.data ?? []))
+      .catch(() => {});
+  };
+
+  const openAdd = () => {
+    setEditing({ ...empty });
+    setSelectedStateId('');
+    setMunicipalities([]);
+    setAvailableCategories([]);
+    loadDropdowns();
+    setModalOpen(true);
+  };
+
+  const openEdit = (c: Contract) => {
+    setEditing({ ...c, categories: c.categories ?? [] });
+    loadDropdowns();
+    if (c.systemModule?.id) {
+      loadCategoriesForModule(c.systemModule.id);
+    } else {
+      setAvailableCategories([]);
+    }
+    const stId = c.municipality?.state?.id;
+    if (stId) {
+      setSelectedStateId(stId);
+      userControlApi.getMunicipalitiesByState(stId)
+        .then((r) => setMunicipalities(r.data ?? []))
+        .catch(() => {});
+    } else {
+      setSelectedStateId('');
+      setMunicipalities([]);
+    }
+    setModalOpen(true);
+  };
+
+  const handleSystemModuleChange = (moduleId: number) => {
+    const sm = systemModules.find((x) => x.id === moduleId);
+    setEditing({ ...editing, systemModule: sm ? { id: sm.id, code: sm.code ?? '', description: sm.description ?? '' } : null, categories: [] });
+    if (moduleId) {
+      loadCategoriesForModule(moduleId);
+    } else {
+      setAvailableCategories([]);
+    }
+  };
+
+  const toggleCategory = (cat: CategoryOption) => {
+    const current = editing.categories ?? [];
+    const exists = current.some((c) => c.id === cat.id);
+    if (exists) {
+      setEditing({ ...editing, categories: current.filter((c) => c.id !== cat.id) });
+    } else {
+      setEditing({ ...editing, categories: [...current, cat] });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,9 +135,11 @@ export default function ContractsPage() {
       const payload = {
         name: editing.name, description: editing.description,
         startDate: editing.startDate, endDate: editing.endDate,
-        isActive: editing.isActive, subCompanyId: editing.subCompanyId || null,
+        isActive: editing.isActive,
         company: editing.company ? { id: editing.company.id } : null,
         systemModule: editing.systemModule ? { id: editing.systemModule.id } : null,
+        municipality: editing.municipality ? { id: editing.municipality.id } : null,
+        categories: (editing.categories ?? []).map((c) => ({ id: c.id })),
       };
       if (editing.id) { await userControlApi.updateContract(editing.id, payload); toast.success('Contrato atualizado com sucesso.'); }
       else { await userControlApi.createContract(payload); toast.success('Contrato criado com sucesso.'); }
@@ -77,10 +148,27 @@ export default function ContractsPage() {
     } catch { toast.error('Erro ao salvar contrato.'); } finally { setSaving(false); }
   };
 
+  const categoriesCell = (r: Record<string, unknown>) => {
+    const cats = (r.categories ?? []) as CategoryOption[];
+    if (!cats.length) return '—';
+    return (
+      <div className="flex flex-wrap gap-1">
+        {cats.map((c) => (
+          <span key={c.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+            {c.iconUrl && <img src={c.iconUrl} alt="" className="h-4 w-4 object-contain" />}
+            {c.code}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   const columns = [
     { key: 'name', header: 'Nome', sortable: true, minWidth: '120px' },
     { key: 'company.name', header: 'Empresa', sortable: true, minWidth: '120px' },
+    { key: 'municipality.name', header: 'Município', sortable: true, minWidth: '120px' },
     { key: 'systemModule.description', header: 'Módulo', sortable: true, minWidth: '120px' },
+    { key: 'categories', header: 'Categorias', sortable: false, minWidth: '200px', render: categoriesCell },
     { key: 'startDate', header: 'Início', sortable: true, minWidth: '120px',
       render: (r: Record<string, unknown>) => { const d = r.startDate as string; return d ? new Date(d).toLocaleDateString('pt-BR') : ''; },
     },
@@ -94,6 +182,8 @@ export default function ContractsPage() {
       },
     },
   ];
+
+  const selectedCatIds = new Set((editing.categories ?? []).map((c) => c.id));
 
   return (
     <>
@@ -138,21 +228,47 @@ export default function ContractsPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">System Module *</label>
-            <select required value={editing.systemModule?.id ?? ''} onChange={(e) => {
-              const sm = systemModules.find((x) => x.id === Number(e.target.value));
-              setEditing({ ...editing, systemModule: sm ? { id: sm.id, code: sm.code ?? '', description: sm.description ?? '' } : null });
-            }} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+            <select required value={editing.systemModule?.id ?? ''} onChange={(e) => handleSystemModuleChange(Number(e.target.value))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
               <option value="">Select...</option>
               {systemModules.map((sm) => <option key={sm.id} value={sm.id}>{sm.description}</option>)}
             </select>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Sub Company</label>
-            <select value={editing.subCompanyId ?? ''} onChange={(e) => setEditing({ ...editing, subCompanyId: e.target.value ? Number(e.target.value) : null })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
-              <option value="">None</option>
-              {companies.filter((c) => c.id !== editing.company?.id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+          {availableCategories.length > 0 && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Categorias</label>
+              <div className="max-h-48 overflow-y-auto rounded-md border border-gray-300 p-2">
+                {availableCategories.map((cat) => (
+                  <label key={cat.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-gray-50">
+                    <input type="checkbox" checked={selectedCatIds.has(cat.id)} onChange={() => toggleCategory(cat)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                    {cat.iconUrl && <img src={cat.iconUrl} alt="" className="h-5 w-5 object-contain" />}
+                    <span className="font-medium text-gray-700">{cat.code}</span>
+                    <span className="text-gray-500">— {cat.description}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">State</label>
+              <select value={selectedStateId} onChange={(e) => handleStateChange(Number(e.target.value))}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                <option value="">Select...</option>
+                {states.map((s) => <option key={s.id} value={s.id}>{s.description || s.code}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Municipality</label>
+              <select value={editing.municipality?.id ?? ''} onChange={(e) => {
+                const m = municipalities.find((x) => x.id === Number(e.target.value));
+                setEditing({ ...editing, municipality: m ? { id: m.id, name: m.name ?? '' } : null });
+              }} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                <option value="">Select...</option>
+                {municipalities.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

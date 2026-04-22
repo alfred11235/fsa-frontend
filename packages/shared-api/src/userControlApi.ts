@@ -160,6 +160,8 @@ export const userControlApi = {
     apiClient.post('/categories', data),
   updateCategory: (id: number, data: Record<string, unknown>) =>
     apiClient.put(`/categories/${id}`, data),
+  getCategoriesBySystemModule: (systemModuleId: number) =>
+    apiClient.get(`/categories/by-system-module/${systemModuleId}`),
 
   // User Flows
   getUserFlows: (params?: Record<string, unknown>) =>
@@ -180,4 +182,8 @@ export const userControlApi = {
     apiClient.get('/histories/by-entity', { params: { entityType, entityId, ...params } }),
   getHistoriesByUser: (userId: number, params?: Record<string, unknown>) =>
     apiClient.get(`/histories/by-user/${userId}`, { params }),
+
+  // Dashboard
+  getDashboardStats: () =>
+    apiClient.get('/dashboard/stats'),
 };
