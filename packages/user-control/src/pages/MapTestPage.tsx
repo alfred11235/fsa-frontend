@@ -208,6 +208,17 @@ export default function MapTestPage() {
                 ],
               },
             },
+            {
+              title: 'Fotos',
+              type: 'media' as const,
+              collapsible: true,
+              config: {
+                source: { type: 'endpoint', url: '/geographic-point-pictures/by-point/{id}' },
+                display: 'gallery',
+                thumbnailSize: { width: 100, height: 100 },
+                lightbox: true,
+              },
+            },
           ],
         },
       },

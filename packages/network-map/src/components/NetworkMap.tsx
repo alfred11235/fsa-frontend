@@ -174,7 +174,11 @@ export default function NetworkMap({
     const adapter = getAdapter();
     if (!adapter) return;
 
-    const interactiveLayers = layers.filter((l) => l.interactive !== false).map((l) => l.code);
+    const interactiveCodes = layers.filter((l) => l.interactive !== false).map((l) => l.code);
+    // Include MVT sub-layer IDs so queryRenderedFeatures picks up clustered/unclustered features
+    const interactiveLayers = interactiveCodes.flatMap((code) => [
+      code, `${code}-unclustered`, `${code}-cluster`, `${code}-cluster-count`,
+    ]);
 
     const handleClick = (e: { point: { x: number; y: number }; lngLat: { lng: number; lat: number } }) => {
       const features = adapter.queryRenderedFeatures(e.point, interactiveLayers) as {
@@ -184,11 +188,28 @@ export default function NetworkMap({
       }[];
       if (features.length > 0) {
         const f = features[0];
+        // Skip cluster features — they have point_count but no real feature_id
+        if (f.properties.point_count != null) {
+          return;
+        }
+        // Resolve MVT sub-layer IDs back to the parent layer code
+        let resolvedLayerCode = f.layer.id;
+        for (const suffix of ['-cluster-count', '-cluster', '-unclustered', '-label']) {
+          if (resolvedLayerCode.endsWith(suffix)) {
+            resolvedLayerCode = resolvedLayerCode.slice(0, -suffix.length);
+            break;
+          }
+        }
+        // Fallback: match against known layer codes
+        if (!layers.some((l) => l.code === resolvedLayerCode)) {
+          const base = layers.find((l) => resolvedLayerCode.startsWith(l.code));
+          if (base) resolvedLayerCode = base.code;
+        }
         const mapFeature: MapFeature = {
           id: (f.properties.id ?? f.properties.feature_id ?? '') as string | number,
-          layerCode: f.layer.id,
+          layerCode: resolvedLayerCode,
           geometry: f.geometry,
-          properties: f.properties,
+          properties: { ...f.properties, lat: e.lngLat.lat, lng: e.lngLat.lng },
         };
         setSelectedFeature(mapFeature);
         onFeatureClick?.(mapFeature);
@@ -207,10 +228,13 @@ export default function NetworkMap({
     const adapter = getAdapter();
     if (!adapter) return;
 
-    const interactiveLayers = layers.filter((l) => l.interactive !== false).map((l) => l.code);
+    const hoverCodes = layers.filter((l) => l.interactive !== false).map((l) => l.code);
+    const hoverLayers = hoverCodes.flatMap((code) => [
+      code, `${code}-unclustered`, `${code}-cluster`, `${code}-cluster-count`,
+    ]);
 
     const handleMouseMove = (e: { point: { x: number; y: number } }) => {
-      const features = adapter.queryRenderedFeatures(e.point, interactiveLayers) as {
+      const features = adapter.queryRenderedFeatures(e.point, hoverLayers) as {
         layer: { id: string };
         properties: Record<string, unknown>;
         geometry: GeoJSON.Geometry;

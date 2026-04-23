@@ -383,8 +383,13 @@ export class MapLibreAdapter implements MapAdapter {
   queryRenderedFeatures(point: { x: number; y: number }, layerIds?: string[]): unknown[] {
     const m = this.safeMap();
     if (!m) return [];
+    // Filter to only layer IDs that exist on the map to avoid MapLibre errors
+    const validLayers = layerIds?.filter((id) => {
+      try { return !!m.getLayer(id); } catch { return false; }
+    });
+    if (validLayers && validLayers.length === 0) return [];
     return m.queryRenderedFeatures([point.x, point.y], {
-      layers: layerIds,
+      layers: validLayers,
     });
   }
 
