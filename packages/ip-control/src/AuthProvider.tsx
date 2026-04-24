@@ -1,6 +1,16 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 
+export interface MembershipInfo {
+  membershipId: number;
+  roleId: number;
+  roleName: string;
+  permissions: string[];
+  contractId: number | null;
+  contractName: string | null;
+  municipalityId: number | null;
+}
+
 interface User {
   id: number;
   guid: string;
@@ -9,11 +19,8 @@ interface User {
   phone: string;
   companyId: number | null;
   companyTypeId: number | null;
-  municipalityId: number | null;
-  roleId: number | null;
-  roleName: string;
-  membershipId: number | null;
   permissions: string[];
+  memberships: MembershipInfo[];
 }
 
 interface AuthContextType {
@@ -56,8 +63,23 @@ function parseLong(value: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
+function parseMemberships(raw: unknown): MembershipInfo[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((m: Record<string, unknown>) => ({
+    membershipId: parseLong(m.membershipId) ?? 0,
+    roleId: parseLong(m.roleId) ?? 0,
+    roleName: (m.roleName as string) ?? '',
+    permissions: Array.isArray(m.permissions) ? (m.permissions as string[]) : [],
+    contractId: parseLong(m.contractId),
+    contractName: (m.contractName as string) ?? null,
+    municipalityId: parseLong(m.municipalityId),
+  }));
+}
+
 function buildUser(claims: Record<string, unknown>): User {
   const permissions = (Array.isArray(claims.Permission) ? claims.Permission : []) as string[];
+  const memberships = parseMemberships(claims.Memberships);
+
   return {
     id: parseLong(claims.sub) ?? 0,
     guid: (claims.guid as string) ?? '',
@@ -66,11 +88,8 @@ function buildUser(claims: Record<string, unknown>): User {
     phone: (claims.phone as string) ?? '',
     companyId: parseLong(claims.CompanyId),
     companyTypeId: parseLong(claims.CompanyTypeId),
-    municipalityId: parseLong(claims.MunicipalityId),
-    roleId: parseLong(claims.RoleId),
-    roleName: (claims.RoleName as string) ?? '',
-    membershipId: parseLong(claims.MembershipId),
     permissions,
+    memberships,
   };
 }
 
@@ -101,6 +120,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const login = useCallback(async (email: string, password: string) => {
+    localStorage.removeItem('fsa_ip_token');
+    setToken(null);
+    setUser(null);
+
     const res = await axios.post('/api/auth/login', { email, password });
     const jwt = res.data.token;
     localStorage.setItem('fsa_ip_token', jwt);

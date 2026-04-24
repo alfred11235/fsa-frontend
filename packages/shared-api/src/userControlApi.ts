@@ -61,6 +61,10 @@ export const userControlApi = {
   // Memberships
   getMemberships: (params?: Record<string, unknown>) =>
     apiClient.get('/memberships', { params }),
+  getMembershipsByUser: (userId: number) =>
+    apiClient.get(`/memberships/by-user/${userId}`),
+  getMembershipsByUserWithCategories: (userId: number) =>
+    apiClient.get(`/memberships/by-user/${userId}/with-categories`),
   createMembership: (data: Record<string, unknown>) =>
     apiClient.post('/memberships', data),
   updateMembership: (id: number, data: Record<string, unknown>) =>
