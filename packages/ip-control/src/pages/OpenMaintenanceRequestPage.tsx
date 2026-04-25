@@ -428,6 +428,23 @@ function StepAddress({
   );
 }
 
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address?: {
+    road?: string;
+    suburb?: string;
+    neighbourhood?: string;
+    city_district?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    state?: string;
+  };
+}
+
 function StepAddressInner({
   data,
   update,
@@ -439,6 +456,112 @@ function StepAddressInner({
   const { isReady, getAdapter } = useMap();
   const { selectedContract } = useContract();
   const markerRef = useRef<unknown>(null);
+
+  // Address autocomplete state
+  const [addressQuery, setAddressQuery] = useState(data.address);
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressReverseRef = useRef(false);
+
+  // Sync external updates to local query (e.g. from reverse geocoding)
+  useEffect(() => {
+    setAddressQuery(data.address);
+  }, [data.address]);
+
+  // Forward geocoding: search as user types (debounced)
+  const searchAddress = useCallback((query: string) => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (query.trim().length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({
+          q: query,
+          format: 'json',
+          addressdetails: '1',
+          limit: '5',
+          countrycodes: 'br',
+        });
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+          headers: { 'Accept-Language': 'pt-BR' },
+        });
+        const results: NominatimResult[] = await res.json();
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 400);
+  }, []);
+
+  const handleAddressInput = useCallback((value: string) => {
+    setAddressQuery(value);
+    update({ address: value });
+    searchAddress(value);
+  }, [update, searchAddress]);
+
+  // When user picks a suggestion: update address, neighborhood, coords, center map, move marker
+  const handleSelectSuggestion = useCallback((result: NominatimResult) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    const addr = result.address;
+    const neighborhood = addr?.suburb || addr?.neighbourhood || addr?.city_district || '';
+
+    suppressReverseRef.current = true;
+    update({
+      address: result.display_name,
+      neighborhood,
+      latitude: lat,
+      longitude: lng,
+    });
+    setSuggestions([]);
+    setShowSuggestions(false);
+
+    // Move marker and fly to location
+    const marker = markerRef.current as { setLngLat: (c: [number, number]) => void } | null;
+    if (marker) marker.setLngLat([lng, lat]);
+
+    const adapter = getAdapter();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawMap = adapter?.getRawMap() as any;
+    if (rawMap) {
+      rawMap.flyTo({ center: [lng, lat], zoom: 16 });
+    }
+  }, [update, getAdapter]);
+
+  // Reverse geocoding: coords → address
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    if (suppressReverseRef.current) {
+      suppressReverseRef.current = false;
+      return;
+    }
+    try {
+      const params = new URLSearchParams({
+        lat: lat.toString(),
+        lon: lng.toString(),
+        format: 'json',
+        addressdetails: '1',
+      });
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+        headers: { 'Accept-Language': 'pt-BR' },
+      });
+      const result: NominatimResult = await res.json();
+      if (result.display_name) {
+        const addr = result.address;
+        const neighborhood = addr?.suburb || addr?.neighbourhood || addr?.city_district || '';
+        update({
+          address: result.display_name,
+          neighborhood,
+        });
+      }
+    } catch {
+      // Silently fail — user can still type manually
+    }
+  }, [update]);
 
   // Build layers: geographic-points (MVT) + occurrences for the current contract (GeoJSON)
   const [occurrenceGeoJson, setOccurrenceGeoJson] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -550,11 +673,13 @@ function StepAddressInner({
       marker.on('dragend', () => {
         const lngLat = marker.getLngLat();
         update({ latitude: lngLat.lat, longitude: lngLat.lng });
+        reverseGeocode(lngLat.lat, lngLat.lng);
       });
 
       rawMap.on('click', (e: { lngLat: { lng: number; lat: number } }) => {
         marker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
         update({ latitude: e.lngLat.lat, longitude: e.lngLat.lng });
+        reverseGeocode(e.lngLat.lat, e.lngLat.lng);
       });
 
       markerRef.current = marker;
@@ -634,14 +759,34 @@ function StepAddressInner({
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Endereço da Ocorrência *
             </label>
-            <div className="flex items-center gap-2">
-              <input
-                placeholder="Digite o endereço da ocorrência..."
-                value={data.address}
-                onChange={(e) => update({ address: e.target.value })}
-                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-              />
-              <MapPin size={18} className="text-primary-500" />
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <input
+                  placeholder="Digite o endereço da ocorrência..."
+                  value={addressQuery}
+                  onChange={(e) => handleAddressInput(e.target.value)}
+                  onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                  onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); }}
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                />
+                <MapPin size={18} className="text-primary-500" />
+              </div>
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                  {suggestions.map((s) => (
+                    <li key={s.place_id}>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelectSuggestion(s)}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-primary-50"
+                      >
+                        {s.display_name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
