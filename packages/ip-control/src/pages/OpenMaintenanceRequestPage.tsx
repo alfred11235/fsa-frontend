@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Button, useToast } from '@fsa/shared-ui';
 import { serviceOrdersApi, fileApi } from '@fsa/shared-api';
 import { NetworkMap, MapProvider, MapLibreAdapter, useMap } from '@fsa/network-map';
+import type { LayerConfig } from '@fsa/network-map';
 import { useContract } from '../ContractProvider';
 import {
   ArrowRight,
@@ -436,7 +437,96 @@ function StepAddressInner({
 }) {
   const [previews, setPreviews] = useState<string[]>([]);
   const { isReady, getAdapter } = useMap();
+  const { selectedContract } = useContract();
   const markerRef = useRef<unknown>(null);
+
+  // Build layers: geographic-points (MVT) + occurrences for the current contract (GeoJSON)
+  const [occurrenceGeoJson, setOccurrenceGeoJson] = useState<GeoJSON.FeatureCollection | null>(null);
+
+  useEffect(() => {
+    if (!selectedContract) return;
+    serviceOrdersApi
+      .getOccurrencesByContractGeoJson(selectedContract.id)
+      .then((res) => setOccurrenceGeoJson(res.data))
+      .catch(() => {});
+  }, [selectedContract]);
+
+  const mapLayers: LayerConfig[] = useMemo(() => {
+    const layers: LayerConfig[] = [
+      // Geographic points (poles) via MVT
+      {
+        code: 'geographic-points',
+        name: 'Postes',
+        geometryType: 'point' as const,
+        source: {
+          type: 'mvt' as const,
+          url: '/api/network-map/spatial/mvt/geographic-points/{z}/{x}/{y}.mvt',
+        },
+        style: {
+          color: '#22c55e',
+          iconSize: 6,
+          outlineColor: '#ffffff',
+          outlineWidth: 2,
+          opacity: 0.95,
+        },
+        minZoom: 10,
+        interactive: true,
+        visibleByDefault: true,
+        legendEnabled: true,
+        zOrder: 20,
+        cluster: {
+          enabled: true,
+          maxZoom: 15,
+          radius: 60,
+        },
+        popup: {
+          trigger: 'click' as const,
+          title: 'Poste {Basement}',
+          fields: [
+            { property: 'Basement', label: 'Código', format: 'text' as const },
+            { property: 'Neighborhood', label: 'Bairro', format: 'text' as const },
+            { property: 'Address', label: 'Endereço', format: 'text' as const },
+          ],
+        },
+      },
+    ];
+
+    // Occurrences for this contract via GeoJSON (static data fetched from API)
+    if (occurrenceGeoJson && occurrenceGeoJson.features.length > 0) {
+      layers.push({
+        code: 'occurrences',
+        name: 'Ocorrências',
+        geometryType: 'point' as const,
+        source: {
+          type: 'geojson-static' as const,
+          data: occurrenceGeoJson,
+        },
+        style: {
+          color: '#ef4444',
+          iconSize: 8,
+          outlineColor: '#ffffff',
+          outlineWidth: 2,
+          opacity: 0.9,
+        },
+        interactive: true,
+        visibleByDefault: true,
+        legendEnabled: true,
+        zOrder: 30,
+        popup: {
+          trigger: 'click' as const,
+          title: 'Ocorrência {protocolNumber}',
+          fields: [
+            { property: 'protocolNumber', label: 'Protocolo', format: 'text' as const },
+            { property: 'address', label: 'Endereço', format: 'text' as const },
+            { property: 'reportedBy', label: 'Solicitante', format: 'text' as const },
+            { property: 'reportedAt', label: 'Data', format: 'datetime' as const },
+          ],
+        },
+      });
+    }
+
+    return layers;
+  }, [occurrenceGeoJson]);
 
   // Add a draggable marker once the map is ready, capture clicks
   useEffect(() => {
@@ -512,23 +602,23 @@ function StepAddressInner({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Left: Map + address */}
-        <div className="space-y-3">
-          {/* Map — reuses the platform's NetworkMap component */}
-          <div className="h-64 w-full overflow-hidden rounded-lg border border-gray-300">
-            <NetworkMap
-              center={[data.longitude ?? -38.5, data.latitude ?? -12.97]}
-              zoom={12}
-              layers={[]}
-              showLayerPanel={false}
-              showBaseLayerSwitcher={false}
-              showCoordinates={false}
-              showScale={false}
-              className="h-full w-full"
-            />
-          </div>
+      {/* Map — full width, larger area */}
+      <div className="h-[400px] w-full overflow-hidden rounded-lg border border-gray-300">
+        <NetworkMap
+          center={[data.longitude ?? -38.5, data.latitude ?? -12.97]}
+          zoom={13}
+          layers={mapLayers}
+          showLayerPanel={false}
+          showBaseLayerSwitcher={false}
+          showCoordinates={false}
+          showScale={false}
+          className="h-full w-full"
+        />
+      </div>
 
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Left: address fields */}
+        <div className="space-y-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Endereço da Ocorrência *
@@ -555,10 +645,7 @@ function StepAddressInner({
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
             />
           </div>
-        </div>
 
-        {/* Right: Reference, additional info, photos */}
-        <div className="space-y-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Ponto de Referência
@@ -570,7 +657,10 @@ function StepAddressInner({
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
             />
           </div>
+        </div>
 
+        {/* Right: additional info + photos */}
+        <div className="space-y-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Informações Adicionais
