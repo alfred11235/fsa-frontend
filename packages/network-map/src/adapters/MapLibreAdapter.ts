@@ -52,7 +52,7 @@ export class MapLibreAdapter implements MapAdapter {
       pitch: options.pitch ?? 0,
       transformRequest: (url: string): maplibregl.RequestParameters | undefined => {
         if (url.includes('/api/')) {
-          const token = localStorage.getItem('fsa_token');
+          const token = localStorage.getItem('fsa_ip_token') || localStorage.getItem('fsa_token');
           if (token) {
             return { url, headers: { 'Authorization': `Bearer ${token}` } };
           }

@@ -186,14 +186,18 @@ export default function NetworkMap({
         properties: Record<string, unknown>;
         geometry: GeoJSON.Geometry;
       }[];
-      if (features.length > 0) {
-        const f = features[0];
-        // Skip cluster features — they have point_count but no real feature_id
-        if (f.properties.point_count != null) {
-          return;
-        }
+      if (features.length === 0) {
+        setSelectedFeature(null);
+        return;
+      }
+
+      // Prefer non-cluster features — cluster layers often overlap individual points
+      const nonCluster = features.find((ft) => ft.properties.point_count == null);
+      const clusterHit = features.find((ft) => ft.properties.point_count != null);
+
+      if (nonCluster) {
         // Resolve MVT sub-layer IDs back to the parent layer code
-        let resolvedLayerCode = f.layer.id;
+        let resolvedLayerCode = nonCluster.layer.id;
         for (const suffix of ['-cluster-count', '-cluster', '-unclustered', '-label']) {
           if (resolvedLayerCode.endsWith(suffix)) {
             resolvedLayerCode = resolvedLayerCode.slice(0, -suffix.length);
@@ -206,15 +210,23 @@ export default function NetworkMap({
           if (base) resolvedLayerCode = base.code;
         }
         const mapFeature: MapFeature = {
-          id: (f.properties.id ?? f.properties.feature_id ?? '') as string | number,
+          id: (nonCluster.properties.id ?? nonCluster.properties.feature_id ?? '') as string | number,
           layerCode: resolvedLayerCode,
-          geometry: f.geometry,
-          properties: { ...f.properties, lat: e.lngLat.lat, lng: e.lngLat.lng },
+          geometry: nonCluster.geometry,
+          properties: { ...nonCluster.properties, lat: e.lngLat.lat, lng: e.lngLat.lng },
         };
         setSelectedFeature(mapFeature);
         onFeatureClick?.(mapFeature);
-      } else {
-        setSelectedFeature(null);
+      } else if (clusterHit) {
+        // Only cluster features at this point — zoom in to reveal individual points
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rawMap = adapter.getRawMap() as any;
+        if (rawMap) {
+          rawMap.easeTo({
+            center: [e.lngLat.lng, e.lngLat.lat],
+            zoom: adapter.getViewport().zoom + 2,
+          });
+        }
       }
     };
 

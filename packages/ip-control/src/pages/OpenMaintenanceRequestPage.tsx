@@ -453,7 +453,8 @@ function StepAddressInner({
 
   const mapLayers: LayerConfig[] = useMemo(() => {
     const layers: LayerConfig[] = [
-      // Geographic points (poles) via MVT
+      // Geographic points (poles) via MVT — use the unclustered source-layer
+      // so every individual point is always clickable at any zoom level
       {
         code: 'geographic-points',
         name: 'Postes',
@@ -461,6 +462,7 @@ function StepAddressInner({
         source: {
           type: 'mvt' as const,
           url: '/api/network-map/spatial/mvt/geographic-points/{z}/{x}/{y}.mvt',
+          sourceLayer: 'geographic-points-unclustered',
         },
         style: {
           color: '#22c55e',
@@ -474,11 +476,6 @@ function StepAddressInner({
         visibleByDefault: true,
         legendEnabled: true,
         zOrder: 20,
-        cluster: {
-          enabled: true,
-          maxZoom: 15,
-          radius: 60,
-        },
         popup: {
           trigger: 'click' as const,
           title: 'Poste {Basement}',
@@ -570,11 +567,11 @@ function StepAddressInner({
     };
   }, [isReady]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
+  const addFiles = useCallback((files: File[]) => {
     const validFiles = files.filter(
       (f) => f.size <= 5 * 1024 * 1024 && /\.(jpe?g|png|pdf)$/i.test(f.name)
     );
+    if (validFiles.length === 0) return;
     update({ pictureFiles: [...data.pictureFiles, ...validFiles] });
 
     validFiles.forEach((f) => {
@@ -583,9 +580,23 @@ function StepAddressInner({
         setPreviews((prev) => [...prev, url]);
       }
     });
+  }, [data.pictureFiles, update]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(e.target.files ?? []));
     e.target.value = '';
   };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addFiles(Array.from(e.dataTransfer.files));
+  }, [addFiles]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
 
   const removeFile = (index: number) => {
     const newFiles = [...data.pictureFiles];
@@ -677,7 +688,11 @@ function StepAddressInner({
           {/* Photo upload */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Anexar Fotos</label>
-            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 transition-colors hover:border-primary-400 hover:bg-primary-50">
+            <label
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 transition-colors hover:border-primary-400 hover:bg-primary-50"
+            >
               <Upload size={24} className="text-gray-400" />
               <span className="text-sm text-gray-500">
                 Clique ou arraste os arquivos aqui para fazer upload de fotos
@@ -739,7 +754,6 @@ function StepConfirmation({
 }) {
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-gray-800">Solicitação de manutenção</h1>
 
       {/* Summary */}
       <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">

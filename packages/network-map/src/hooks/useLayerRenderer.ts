@@ -85,7 +85,7 @@ function addLayerToMap(adapter: ReturnType<ReturnType<typeof useMap>['getAdapter
       id: `${layerId}-label`,
       type: 'symbol',
       source: sourceId,
-      ...(layer.source.type === 'mvt' ? { sourceLayer: layer.code } : {}),
+      ...(layer.source.type === 'mvt' ? { sourceLayer: layer.source.sourceLayer || layer.code } : {}),
       minzoom: layer.labelMinZoom ?? (layer.minZoom ?? 0) + 2,
       layout: {
         'text-field': ['get', layer.labelField],
@@ -130,6 +130,9 @@ function addLayerToMap(adapter: ReturnType<ReturnType<typeof useMap>['getAdapter
 function buildLayerSpec(layer: LayerConfig, sourceId: string, layerId: string): MapLayerSpec {
   const s = layer.style;
   const isMVT = layer.source.type === 'mvt';
+  const mvtSourceLayer = isMVT
+    ? (layer.source.type === 'mvt' && layer.source.sourceLayer) || layer.code
+    : undefined;
 
   switch (layer.geometryType) {
     case 'point':
@@ -137,7 +140,7 @@ function buildLayerSpec(layer: LayerConfig, sourceId: string, layerId: string): 
         id: layerId,
         type: 'circle',
         source: sourceId,
-        ...(isMVT ? { sourceLayer: layer.code } : {}),
+        ...(isMVT ? { sourceLayer: mvtSourceLayer } : {}),
         minzoom: layer.minZoom,
         maxzoom: layer.maxZoom,
         paint: {
@@ -154,7 +157,7 @@ function buildLayerSpec(layer: LayerConfig, sourceId: string, layerId: string): 
         id: layerId,
         type: 'line',
         source: sourceId,
-        ...(isMVT ? { sourceLayer: layer.code } : {}),
+        ...(isMVT ? { sourceLayer: mvtSourceLayer } : {}),
         minzoom: layer.minZoom,
         maxzoom: layer.maxZoom,
         paint: {
@@ -175,7 +178,7 @@ function buildLayerSpec(layer: LayerConfig, sourceId: string, layerId: string): 
         id: layerId,
         type: 'fill',
         source: sourceId,
-        ...(isMVT ? { sourceLayer: layer.code } : {}),
+        ...(isMVT ? { sourceLayer: mvtSourceLayer } : {}),
         minzoom: layer.minZoom,
         maxzoom: layer.maxZoom,
         paint: {
@@ -190,7 +193,7 @@ function buildLayerSpec(layer: LayerConfig, sourceId: string, layerId: string): 
         id: layerId,
         type: 'circle',
         source: sourceId,
-        ...(isMVT ? { sourceLayer: layer.code } : {}),
+        ...(isMVT ? { sourceLayer: mvtSourceLayer } : {}),
         paint: {
           'circle-radius': 5,
           'circle-color': '#3b82f6',

@@ -8,7 +8,7 @@ export interface LayerConfig {
   name: string;
   geometryType: 'point' | 'line' | 'polygon';
   source:
-    | { type: 'mvt'; url: string }
+    | { type: 'mvt'; url: string; sourceLayer?: string }
     | { type: 'geojson'; url: string; refreshInterval?: number }
     | { type: 'geojson-static'; data: FeatureCollection };
   minZoom?: number;
