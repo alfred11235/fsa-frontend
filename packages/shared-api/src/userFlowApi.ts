@@ -12,4 +12,8 @@ export const userFlowApi = {
     apiClient.get('/user-flows/available-actions', { params: { flowCode, targetId } }),
   getHistory: (flowCode: string, targetId: string) =>
     apiClient.get('/user-flows/history', { params: { flowCode, targetId } }),
+  getCurrentRegisterByServiceOrder: (flowCode: string, serviceOrderId: number) =>
+    apiClient.get('/user-flows/current-by-so', { params: { flowCode, serviceOrderId } }),
+  getHistoryByServiceOrder: (flowCode: string, serviceOrderId: number) =>
+    apiClient.get('/user-flows/history-by-so', { params: { flowCode, serviceOrderId } }),
 };

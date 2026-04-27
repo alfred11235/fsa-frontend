@@ -17,6 +17,8 @@ export const serviceOrdersApi = {
     apiClient.get(`/occurrences/by-protocol/${protocolNumber}`),
   getOccurrencesByContract: (contractId: number) =>
     apiClient.get(`/occurrences/by-contract/${contractId}`),
+  getOccurrencesByContractEnriched: (contractId: number) =>
+    apiClient.get(`/occurrences/by-contract/${contractId}/enriched`),
   getOccurrencesByContractGeoJson: (contractId: number) =>
     apiClient.get(`/occurrences/by-contract/${contractId}/geojson`),
   createOccurrence: (data: Record<string, unknown>) =>

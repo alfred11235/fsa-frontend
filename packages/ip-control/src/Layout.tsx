@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Wrench,
   FilePlus,
+  List,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -77,6 +78,7 @@ export default function Layout() {
           label: 'Manutenção',
           children: [
             { to: '/solicitacoes/manutencao/abrir', icon: FilePlus, label: 'Abrir Solicitação' },
+            { to: '/solicitacoes/manutencao/lista', icon: List, label: 'Solicitações' },
           ],
         },
       ],

@@ -4,6 +4,7 @@ import { useAuth } from './AuthProvider';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import OpenMaintenanceRequestPage from './pages/OpenMaintenanceRequestPage';
+import OccurrenceListPage from './pages/OccurrenceListPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -26,6 +27,7 @@ export default function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="solicitacoes/manutencao/abrir" element={<OpenMaintenanceRequestPage />} />
+        <Route path="solicitacoes/manutencao/lista" element={<OccurrenceListPage />} />
       </Route>
     </Routes>
   );
