@@ -123,14 +123,34 @@ export function DataTable<T extends Record<string, unknown>>({
     );
   }, [data, searchQuery, columns]);
 
+  const sortedData = useMemo(() => {
+    if (!sortKey) return filteredData;
+    return [...filteredData].sort((a, b) => {
+      const aVal = getNestedValue(a, sortKey);
+      const bVal = getNestedValue(b, sortKey);
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      let cmp: number;
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        cmp = aVal - bVal;
+      } else if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+        cmp = (aVal === bVal) ? 0 : aVal ? -1 : 1;
+      } else {
+        cmp = String(aVal).localeCompare(String(bVal), undefined, { sensitivity: 'base', numeric: true });
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredData, sortKey, sortDir]);
+
   const clientSidePagination = totalItems == null;
-  const total = clientSidePagination ? filteredData.length : totalItems;
+  const total = clientSidePagination ? sortedData.length : totalItems;
 
   const displayData = useMemo(() => {
-    if (!clientSidePagination) return filteredData;
+    if (!clientSidePagination) return sortedData;
     const start = page * pageSize;
-    return filteredData.slice(start, start + pageSize);
-  }, [filteredData, clientSidePagination, page, pageSize]);
+    return sortedData.slice(start, start + pageSize);
+  }, [sortedData, clientSidePagination, page, pageSize]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const pageNumbers = useMemo(() => {

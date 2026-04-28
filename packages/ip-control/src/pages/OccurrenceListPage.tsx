@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { serviceOrdersApi, userFlowApi } from '@fsa/shared-api';
-import { DataTable, Modal } from '@fsa/shared-ui';
+import { Button, DataTable, Modal } from '@fsa/shared-ui';
 import { NetworkMap, MapProvider, MapLibreAdapter } from '@fsa/network-map';
 import type { LayerConfig } from '@fsa/network-map';
 import { useContract } from '../ContractProvider';
@@ -8,7 +9,7 @@ import {
   ClipboardList,
   Eye,
   MapPin,
-  Phone,
+  Plus,
   AlertTriangle,
   Clock,
   FileText,
@@ -55,6 +56,7 @@ interface RegisterEntry {
 
 export default function OccurrenceListPage() {
   const { selectedContract } = useContract();
+  const navigate = useNavigate();
   const [data, setData] = useState<OccurrenceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -219,6 +221,7 @@ export default function OccurrenceListPage() {
       <DataTable
         title="Solicitações de Manutenção"
         icon={<ClipboardList size={20} className="text-primary-600" />}
+        headerActions={<Button size="sm" variant="success" onClick={() => navigate('/solicitacoes/manutencao/abrir')}><Plus size={16} /> Novo</Button>}
         columns={columns}
         data={data as unknown as Record<string, unknown>[]}
         loading={loading}
