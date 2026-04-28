@@ -23,4 +23,10 @@ export const serviceOrdersApi = {
     apiClient.get(`/occurrences/by-contract/${contractId}/geojson`),
   createOccurrence: (data: Record<string, unknown>) =>
     apiClient.post('/occurrences', data),
+  getUnassignedOccurrences: (contractId: number) =>
+    apiClient.get(`/occurrences/by-contract/${contractId}/unassigned`),
+  getUnassignedOccurrencesGeoJson: (contractId: number) =>
+    apiClient.get(`/occurrences/by-contract/${contractId}/unassigned/geojson`),
+  generateServiceOrders: (occurrenceIds: number[], contractId: number) =>
+    apiClient.post('/occurrences/generate-service-orders', { occurrenceIds, contractId }),
 };

@@ -9,6 +9,7 @@ import {
   Wrench,
   FilePlus,
   List,
+  FileOutput,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -79,6 +80,21 @@ export default function Layout() {
           children: [
             { to: '/solicitacoes/manutencao/abrir', icon: FilePlus, label: 'Abrir Solicitação' },
             { to: '/solicitacoes/manutencao/lista', icon: List, label: 'Solicitações' },
+          ],
+        },
+      ],
+    });
+    nav.push({
+      key: 'ordens-de-servico',
+      icon: FileOutput,
+      label: 'Ordens de Serviço',
+      children: [
+        {
+          key: 'os-manutencao',
+          icon: Wrench,
+          label: 'Manutenção',
+          children: [
+            { to: '/ordens-de-servico/manutencao/gerar', icon: FilePlus, label: 'Gerar OS' },
           ],
         },
       ],
