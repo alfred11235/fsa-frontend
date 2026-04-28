@@ -75,7 +75,7 @@ export default function OccurrenceListPage() {
           }
         }
         setData(rows);
-        // For rows with serviceOrderRegisterId, fetch the current register status
+        // For rows with a service order, fetch the current register status
         enrichStatuses(rows);
       })
       .catch(() => setData([]))
@@ -86,12 +86,13 @@ export default function OccurrenceListPage() {
     const withSO = rows.filter((r) => r.serviceOrderId && r.serviceOrderCode);
     if (withSO.length === 0) return;
 
-    // Use the user-flow current register endpoint querying by serviceOrderId
+    // Fetch current register status for each service order via generic target query
     const updates: Map<number, string> = new Map();
     await Promise.all(
       withSO.map(async (row) => {
         try {
-          const res = await userFlowApi.getCurrentRegisterByServiceOrder('service-orders', row.serviceOrderId!);
+          const res = await userFlowApi.getCurrentRegister(
+            'Manutencao', 'service-orders', 'ServiceOrder', String(row.serviceOrderId!));
           const reg = res.data;
           if (reg?.status?.description) {
             updates.set(row.id, reg.status.description);
@@ -267,7 +268,7 @@ function OccurrenceDetailModal({
     if (!occurrence.serviceOrderId) return;
     setLoadingRegs(true);
     userFlowApi
-      .getHistoryByServiceOrder('service-orders', occurrence.serviceOrderId!)
+      .getHistory('Manutencao', 'service-orders', 'ServiceOrder', String(occurrence.serviceOrderId!))
       .then((res) => setRegisters(res.data ?? []))
       .catch(() => setRegisters([]))
       .finally(() => setLoadingRegs(false));
