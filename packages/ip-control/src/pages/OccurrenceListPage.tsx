@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { serviceOrdersApi, userFlowApi } from '@fsa/shared-api';
+import { serviceOrdersApi, userFlowApi, userControlApi } from '@fsa/shared-api';
 import { Button, DataTable, Modal } from '@fsa/shared-ui';
 import { NetworkMap, MapProvider, MapLibreAdapter } from '@fsa/network-map';
 import type { LayerConfig } from '@fsa/network-map';
@@ -39,6 +39,7 @@ interface OccurrenceRow {
   createdAt: string | null;
   serviceOrderId: number | null;
   serviceOrderCode: string | null;
+  assignedTo: number | null;
   // Enriched on the frontend from user-flow
   status?: string;
 }
@@ -244,6 +245,7 @@ export default function OccurrenceListPage() {
         <OccurrenceDetailModal
           occurrence={selected}
           categoryMap={categoryMap}
+          contractId={selectedContract!.id}
           onClose={() => setSelected(null)}
         />
       )}
@@ -256,15 +258,18 @@ export default function OccurrenceListPage() {
 function OccurrenceDetailModal({
   occurrence,
   categoryMap,
+  contractId,
   onClose,
 }: {
   occurrence: OccurrenceRow;
   categoryMap: Map<number, string>;
+  contractId: number;
   onClose: () => void;
 }) {
   const adapterFactory = useMemo(() => () => new MapLibreAdapter(), []);
   const [registers, setRegisters] = useState<RegisterEntry[]>([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
+  const [assignedWorkerName, setAssignedWorkerName] = useState<string | null>(null);
 
   // Fetch register history if there's a service order
   useEffect(() => {
@@ -276,6 +281,18 @@ function OccurrenceDetailModal({
       .catch(() => setRegisters([]))
       .finally(() => setLoadingRegs(false));
   }, [occurrence.serviceOrderId]);
+
+  // Fetch assigned worker name from contract memberships
+  useEffect(() => {
+    if (!occurrence.assignedTo) return;
+    userControlApi.getMembershipsByContract(contractId).then((res) => {
+      const member = (res.data as { id: number; user?: { id: number; name: string } }[])
+        .find((m) => m.user?.id === occurrence.assignedTo);
+      if (member?.user) {
+        setAssignedWorkerName(member.user.name);
+      }
+    }).catch(() => {});
+  }, [occurrence.assignedTo, contractId]);
 
   // Build a static GeoJSON layer with a single point for the occurrence location
   const mapLayers: LayerConfig[] = useMemo(() => {
@@ -443,6 +460,11 @@ function OccurrenceDetailModal({
                           : '—'}
                         {reg.executedBy && <> · {reg.executedBy}</>}
                       </div>
+                      {reg.status?.id === 2 && assignedWorkerName && (
+                        <p className="mt-1 text-xs font-medium text-blue-600">
+                          Despachado para: {assignedWorkerName}
+                        </p>
+                      )}
                       {reg.observation && (
                         <p className="mt-1 text-xs text-gray-600">{reg.observation}</p>
                       )}

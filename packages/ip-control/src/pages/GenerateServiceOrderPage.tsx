@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { serviceOrdersApi } from '@fsa/shared-api';
+import { serviceOrdersApi, userControlApi } from '@fsa/shared-api';
 import { Button, useToast } from '@fsa/shared-ui';
 import { NetworkMap, MapProvider, MapLibreAdapter, DrawTool } from '@fsa/network-map';
 import type { LayerConfig } from '@fsa/network-map';
@@ -15,6 +15,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Send,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -71,6 +72,12 @@ export default function GenerateServiceOrderPage() {
 
   // Protocol search
   const [protocolSearch, setProtocolSearch] = useState('');
+
+  // Dispatch popup
+  const [showDispatchPopup, setShowDispatchPopup] = useState(false);
+  const [workers, setWorkers] = useState<{ userId: number; userName: string }[]>([]);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(null);
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
 
   // Load unassigned occurrences + assigned occurrences GeoJSON
   const load = useCallback(() => {
@@ -363,6 +370,53 @@ export default function GenerateServiceOrderPage() {
       toast.success(`${generated.length} ordem(ns) de serviço gerada(s) com sucesso!`);
     } catch {
       toast.error('Erro ao gerar ordens de serviço.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Open dispatch popup — loads workers for the contract
+  const openDispatchPopup = async () => {
+    if (selectedIds.size === 0 || !selectedContract) return;
+    setShowDispatchPopup(true);
+    setSelectedWorkerId(null);
+    setLoadingWorkers(true);
+    try {
+      const res = await userControlApi.getMembershipsByContract(selectedContract.id);
+      const memberships = res.data ?? [];
+      const uniqueWorkers = new Map<number, string>();
+      for (const m of memberships) {
+        if (m.role?.code === 'FieldTechnician' && m.user?.id && m.user?.name) {
+          uniqueWorkers.set(m.user.id, m.user.name);
+        }
+      }
+      setWorkers(
+        Array.from(uniqueWorkers.entries()).map(([userId, userName]) => ({ userId, userName })),
+      );
+    } catch {
+      toast.error('Erro ao carregar lista de trabalhadores.');
+      setWorkers([]);
+    } finally {
+      setLoadingWorkers(false);
+    }
+  };
+
+  // Generate and dispatch service orders
+  const handleGenerateAndDispatch = async () => {
+    if (selectedIds.size === 0 || !selectedContract || !selectedWorkerId) return;
+    setShowDispatchPopup(false);
+    setSubmitting(true);
+    try {
+      const res = await serviceOrdersApi.generateAndDispatch(
+        Array.from(selectedIds),
+        selectedContract.id,
+        selectedWorkerId,
+      );
+      const generated: GeneratedSO[] = res.data ?? [];
+      setGeneratedOrders(generated);
+      toast.success(`${generated.length} ordem(ns) gerada(s) e despachada(s) com sucesso!`);
+    } catch {
+      toast.error('Erro ao gerar e despachar ordens de serviço.');
     } finally {
       setSubmitting(false);
     }
@@ -704,8 +758,8 @@ export default function GenerateServiceOrderPage() {
         </div>
       </div>
 
-      {/* Generate button */}
-      <div className="mt-3 flex justify-center">
+      {/* Generate buttons */}
+      <div className="mt-3 flex justify-center gap-3">
         <Button
           variant="primary"
           size="lg"
@@ -723,9 +777,78 @@ export default function GenerateServiceOrderPage() {
             </>
           )}
         </Button>
+        <Button
+          variant="primary"
+          size="lg"
+          disabled={selectedIds.size === 0 || submitting}
+          onClick={openDispatchPopup}
+        >
+          <Send size={18} /> Gerar e Despachar
+        </Button>
       </div>
 
       {detailPopup}
+
+      {/* Dispatch worker selection popup */}
+      {showDispatchPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setShowDispatchPopup(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-4 text-sm font-semibold text-gray-800">
+              Selecionar Trabalhador para Despacho
+            </h3>
+            {loadingWorkers ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-primary-600" />
+              </div>
+            ) : workers.length === 0 ? (
+              <p className="py-4 text-center text-sm text-gray-500">
+                Nenhum trabalhador encontrado para este contrato.
+              </p>
+            ) : (
+              <>
+                <label className="mb-1 block text-xs font-medium text-gray-500">
+                  Trabalhador
+                </label>
+                <select
+                  value={selectedWorkerId ?? ''}
+                  onChange={(e) => setSelectedWorkerId(e.target.value ? Number(e.target.value) : null)}
+                  className="mb-4 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Selecione um trabalhador...</option>
+                  {workers.map((w) => (
+                    <option key={w.userId} value={w.userId}>
+                      {w.userName}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowDispatchPopup(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!selectedWorkerId || loadingWorkers}
+                onClick={handleGenerateAndDispatch}
+              >
+                <Send size={14} /> Gerar e Despachar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
