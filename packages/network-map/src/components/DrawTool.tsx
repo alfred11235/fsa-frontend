@@ -355,16 +355,13 @@ export default function DrawTool({
       lastClickTime.current = now;
 
       if (isDblClick) {
-        // Treat as double-click → finalize
+        // Treat as double-click → finalize, keeping all points including this one
         const pts = pointsRef.current;
         const currentMode = modeRef.current;
         if (currentMode === 'line' && pts.length >= 2) {
-          // Remove the last point (added by the first click of this dblclick pair)
-          const clean = pts.slice(0, -1);
-          if (clean.length >= 2) finishDraw({ type: 'LineString', coordinates: clean });
+          finishDraw({ type: 'LineString', coordinates: pts });
         } else if (currentMode === 'polygon' && pts.length >= 3) {
-          const clean = pts.slice(0, -1);
-          if (clean.length >= 3) finishDraw({ type: 'Polygon', coordinates: [[...clean, clean[0]]] });
+          finishDraw({ type: 'Polygon', coordinates: [[...pts, pts[0]]] });
         }
         return;
       }
@@ -395,7 +392,11 @@ export default function DrawTool({
     // Also intercept native dblclick to prevent zoom
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawMap = adapter.getRawMap() as any;
-    const suppressDbl = (e: { preventDefault?: () => void }) => { e.preventDefault?.(); };
+    const suppressDbl = (e: { preventDefault?: () => void; stopPropagation?: () => void; originalEvent?: Event }) => {
+      e.preventDefault?.();
+      e.stopPropagation?.();
+      e.originalEvent?.preventDefault?.();
+    };
     rawMap?.on('dblclick', suppressDbl);
     adapter.setCursor('crosshair');
 
