@@ -36,10 +36,16 @@ export function useContract() {
 }
 
 const SERVICE_MENU_ROLES = ['Admin', 'AdminSystem', 'AdminEntity', 'Supervisor', 'Agent'];
+const SERVICE_ORDER_MENU_ROLES = ['Admin', 'AdminSystem', 'AdminEntity', 'Supervisor'];
 
 export function canSeeServiceMenu(contract: ContractOption | null): boolean {
   if (!contract) return false;
   return SERVICE_MENU_ROLES.includes(contract.roleName);
+}
+
+export function canSeeServiceOrderMenu(contract: ContractOption | null): boolean {
+  if (!contract) return false;
+  return SERVICE_ORDER_MENU_ROLES.includes(contract.roleName);
 }
 
 export function ContractProvider({ children }: { children: React.ReactNode }) {

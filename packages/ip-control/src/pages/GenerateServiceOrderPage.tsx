@@ -64,7 +64,7 @@ export default function GenerateServiceOrderPage() {
 
   // Pagination
   const [page, setPage] = useState(0);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   // Fence filter: when a fence is drawn, only show these IDs in the grid
   const [fenceFilteredIds, setFenceFilteredIds] = useState<Set<number> | null>(null);
@@ -253,18 +253,18 @@ export default function GenerateServiceOrderPage() {
 
     // Middle-tension wires — MVT
     layers.push({
-      code: 'middle-tension-wires',
+      code: 'mt-wires',
       name: 'Rede MT',
       geometryType: 'line',
       source: {
         type: 'mvt',
-        url: '/api/network-map/spatial/tiles/{z}/{x}/{y}.mvt?layerCode=middle-tension-wires',
-        sourceLayer: 'middle-tension-wires',
+        url: '/api/network-map/spatial/mvt/mt-wires/{z}/{x}/{y}.mvt',
+        sourceLayer: 'mt-wires',
       },
       style: {
-        color: '#f59e0b',
-        lineWidth: 2,
-        opacity: 0.7,
+        color: '#ef4444',
+        width: 3,
+        opacity: 0.9,
       },
       interactive: false,
       visibleByDefault: true,
@@ -278,15 +278,14 @@ export default function GenerateServiceOrderPage() {
       geometryType: 'point',
       source: {
         type: 'mvt',
-        url: '/api/network-map/spatial/tiles/{z}/{x}/{y}.mvt?layerCode=geographic-points',
-        sourceLayer: 'geographic-points-unclustered',
+        url: '/api/network-map/spatial/mvt/geographic-points/{z}/{x}/{y}.mvt',
       },
       style: {
-        color: '#f97316',
-        iconSize: 5,
+        color: '#22c55e',
+        iconSize: 6,
         outlineColor: '#fff',
-        outlineWidth: 1,
-        opacity: 0.7,
+        outlineWidth: 2,
+        opacity: 0.95,
       },
       interactive: false,
       visibleByDefault: true,
@@ -330,9 +329,11 @@ export default function GenerateServiceOrderPage() {
       visibleByDefault: true,
       zOrder: 5,
       popup: {
-        titleField: 'protocolNumber',
-        titlePrefix: 'Protocolo: ',
-        fields: [{ key: 'address', label: 'Endereço' }],
+        trigger: 'click',
+        title: 'Protocolo: {protocolNumber}',
+        fields: [
+          { property: 'address', label: 'Endereço' },
+        ],
       },
     });
 
@@ -636,6 +637,15 @@ export default function GenerateServiceOrderPage() {
               {fenceFilteredIds && ` (${occurrences.length} total)`}
             </span>
             <div className="flex items-center gap-2">
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-600 outline-none"
+              >
+                {[10, 20, 50, 100].map((n) => (
+                  <option key={n} value={n}>{n} / pág.</option>
+                ))}
+              </select>
               <span className="text-xs text-gray-500">
                 Pág. {page + 1} de {totalPages}
               </span>
@@ -671,7 +681,7 @@ export default function GenerateServiceOrderPage() {
               className="h-full w-full"
             />
             <DrawTool
-              position="top-right"
+              position="top-left"
               style={{ top: 10 }}
               onSpatialQuery={handleSpatialQuery}
               onFeatureDeleted={handleFeatureDeleted}

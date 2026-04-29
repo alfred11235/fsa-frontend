@@ -14,7 +14,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
-import { useContract, canSeeServiceMenu } from './ContractProvider';
+import { useContract, canSeeServiceMenu, canSeeServiceOrderMenu } from './ContractProvider';
 
 interface MenuItem {
   to: string;
@@ -84,21 +84,23 @@ export default function Layout() {
         },
       ],
     });
-    nav.push({
-      key: 'ordens-de-servico',
-      icon: FileOutput,
-      label: 'Ordens de Serviço',
-      children: [
-        {
-          key: 'os-manutencao',
-          icon: Wrench,
-          label: 'Manutenção',
-          children: [
-            { to: '/ordens-de-servico/manutencao/gerar', icon: FilePlus, label: 'Gerar OS' },
-          ],
-        },
-      ],
-    });
+    if (canSeeServiceOrderMenu(selectedContract)) {
+      nav.push({
+        key: 'ordens-de-servico',
+        icon: FileOutput,
+        label: 'Ordens de Serviço',
+        children: [
+          {
+            key: 'os-manutencao',
+            icon: Wrench,
+            label: 'Manutenção',
+            children: [
+              { to: '/ordens-de-servico/manutencao/gerar', icon: FilePlus, label: 'Gerar OS' },
+            ],
+          },
+        ],
+      });
+    }
   }
 
   const renderNavEntry = (entry: NavEntry, depth: number = 0) => {

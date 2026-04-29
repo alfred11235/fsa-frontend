@@ -28,10 +28,9 @@ export function useLayerRenderer(layers: LayerConfig[]) {
     // Add or update layers
     for (const layer of layers) {
       if (adapter.hasLayer(layer.code)) {
-        // Update source data if GeoJSON
-        if (layer.source.type === 'geojson' || layer.source.type === 'geojson-static') {
-          // GeoJSON sources can be updated via the adapter
-          // For dynamic endpoints, we'd refetch — handled by useLayerDataFetcher
+        // Update source data for geojson-static layers (e.g. when data prop changes)
+        if (layer.source.type === 'geojson-static' && adapter.hasSource(layer.code)) {
+          adapter.updateGeoJSONSource(layer.code, layer.source.data);
         }
         continue;
       }
