@@ -9,6 +9,15 @@ interface CategoryInfo {
   iconUrl: string | null;
 }
 
+interface MunicipalityBounds {
+  centerLatitude: number;
+  centerLongitude: number;
+  minLatitude: number;
+  maxLatitude: number;
+  minLongitude: number;
+  maxLongitude: number;
+}
+
 interface ContractOption {
   id: number;
   name: string;
@@ -18,6 +27,7 @@ interface ContractOption {
   membershipId: number;
   municipalityId: number | null;
   categories: CategoryInfo[];
+  bounds: MunicipalityBounds | null;
 }
 
 interface ContractContextType {
@@ -84,48 +94,54 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
       membershipId: m.membershipId,
       municipalityId: m.municipalityId,
       categories: [], // will be loaded from API
+      bounds: null, // will be loaded from API
     }));
 
     setContracts(contractOptions);
     setSelectedContract(contractOptions[0]);
 
-    // Fetch categories for each contract in the background
-    const loadCategories = async () => {
+    // Fetch categories and bounds for each contract in the background
+    const loadContractData = async () => {
       try {
         const contractIds = contractOptions.map((c) => c.id);
-        // Fetch each contract with categories
-        const results = await Promise.all(
-          contractIds.map((id) => userControlApi.getContract(id).catch(() => null))
-        );
+        // Fetch contracts (categories) and bounds in parallel
+        const [contractResults, boundsResults] = await Promise.all([
+          Promise.all(contractIds.map((id) => userControlApi.getContract(id).catch(() => null))),
+          Promise.all(contractIds.map((id) => userControlApi.getContractBounds(id).catch(() => null))),
+        ]);
 
         setContracts((prev) =>
           prev.map((c, i) => {
-            const contractData = results[i]?.data;
-            if (contractData?.categories) {
-              return { ...c, categories: contractData.categories };
-            }
-            return c;
+            const contractData = contractResults[i]?.data;
+            const boundsData = boundsResults[i]?.data as MunicipalityBounds | null;
+            return {
+              ...c,
+              categories: contractData?.categories ?? c.categories,
+              bounds: boundsData ?? c.bounds,
+            };
           })
         );
 
-        // Update selected contract categories too
+        // Update selected contract too
         setSelectedContract((prev) => {
           if (!prev) return prev;
           const idx = contractOptions.findIndex((c) => c.id === prev.id);
-          const contractData = idx >= 0 ? results[idx]?.data : null;
-          if (contractData?.categories) {
-            return { ...prev, categories: contractData.categories };
-          }
-          return prev;
+          const contractData = idx >= 0 ? contractResults[idx]?.data : null;
+          const boundsData = idx >= 0 ? (boundsResults[idx]?.data as MunicipalityBounds | null) : null;
+          return {
+            ...prev,
+            categories: contractData?.categories ?? prev.categories,
+            bounds: boundsData ?? prev.bounds,
+          };
         });
       } catch {
-        // Categories will remain empty
+        // Categories/bounds will remain empty
       } finally {
         setLoading(false);
       }
     };
 
-    loadCategories();
+    loadContractData();
   }, [user, isAuthenticated]);
 
   const setSelectedContractId = useCallback(

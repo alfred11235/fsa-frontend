@@ -53,6 +53,7 @@ export const userControlApi = {
   getContracts: (params?: Record<string, unknown>) =>
     apiClient.get('/contracts', { params }),
   getContract: (id: number) => apiClient.get(`/contracts/${id}`),
+  getContractBounds: (id: number) => apiClient.get(`/contracts/${id}/bounds`),
   createContract: (data: Record<string, unknown>) =>
     apiClient.post('/contracts', data),
   updateContract: (id: number, data: Record<string, unknown>) =>

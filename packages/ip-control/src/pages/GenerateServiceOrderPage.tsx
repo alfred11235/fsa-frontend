@@ -251,7 +251,7 @@ export default function GenerateServiceOrderPage() {
   const mapLayers: LayerConfig[] = useMemo(() => {
     const layers: LayerConfig[] = [];
 
-    // Middle-tension wires — MVT
+    // Middle-tension wires — MVT (only at higher zoom, like the test map)
     layers.push({
       code: 'mt-wires',
       name: 'Rede MT',
@@ -266,12 +266,13 @@ export default function GenerateServiceOrderPage() {
         width: 3,
         opacity: 0.9,
       },
+      minZoom: 13,
       interactive: false,
       visibleByDefault: true,
       zOrder: 0,
     });
 
-    // Geographic points (poles) — MVT
+    // Geographic points (poles) — MVT with server-side clustering
     layers.push({
       code: 'geographic-points',
       name: 'Postes',
@@ -286,6 +287,14 @@ export default function GenerateServiceOrderPage() {
         outlineColor: '#fff',
         outlineWidth: 2,
         opacity: 0.95,
+      },
+      minZoom: 10,
+      labelField: 'Basement',
+      labelMinZoom: 15,
+      cluster: {
+        enabled: true,
+        maxZoom: 13,
+        radius: 60,
       },
       interactive: false,
       visibleByDefault: true,
@@ -671,7 +680,11 @@ export default function GenerateServiceOrderPage() {
         <div className="relative w-1/2 overflow-hidden rounded-lg border border-gray-200">
           <MapProvider adapterFactory={adapterFactory}>
             <NetworkMap
-              center={[-38.5, -12.97]}
+              center={
+                selectedContract?.bounds
+                  ? [selectedContract.bounds.centerLongitude, selectedContract.bounds.centerLatitude]
+                  : [-38.5, -12.97]
+              }
               zoom={13}
               layers={mapLayers}
               showLayerPanel={false}
