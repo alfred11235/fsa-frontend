@@ -8,6 +8,12 @@ import { ClipboardList, Play, AlertTriangle } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+interface OccurrenceRef {
+  id: number;
+  protocolNumber: string;
+  address: string | null;
+}
+
 interface ServiceOrderRow {
   id: number;
   code: string;
@@ -20,6 +26,7 @@ interface ServiceOrderRow {
   currentStatusId: number | null;
   currentStatusCode: string | null;
   currentStatusDescription: string | null;
+  occurrences: OccurrenceRef[];
   [key: string]: unknown;
 }
 
@@ -126,7 +133,6 @@ export default function ServiceOrdersByStatusPage() {
     if (!currentStatus || !userRoleId) return [];
     return actions.filter((a) => {
       if (a.statusFromId !== currentStatus.id) return false;
-      // Check if user's role is in the action's identities
       return a.identities.some((ident) => {
         if (ident.entityType === 'Roles') {
           return ident.entityId === String(userRoleId);
@@ -154,7 +160,7 @@ export default function ServiceOrdersByStatusPage() {
       );
       setActionModal(null);
       setObservation('');
-      loadOrders(); // Refresh data
+      loadOrders();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
       alert(msg || 'Erro ao executar ação.');
@@ -182,9 +188,30 @@ export default function ServiceOrdersByStatusPage() {
     <>
       <DataTable<ServiceOrderRow>
         title={pageTitle}
-        icon={<ClipboardList size={18} />}
+        icon={<ClipboardList size={20} className="text-primary-600" />}
+        onSearch={() => {}}
         columns={[
           { key: 'code', header: 'Código', sortable: true },
+          {
+            key: 'occurrences', header: 'Ocorrências', sortable: false,
+            render: (row) => {
+              const occs = row.occurrences ?? [];
+              if (occs.length === 0) return <>—</>;
+              return (
+                <div className="flex flex-wrap gap-1">
+                  {occs.map((o) => (
+                    <span
+                      key={o.id}
+                      className="inline-flex rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-700"
+                      title={o.address ?? undefined}
+                    >
+                      {o.protocolNumber}
+                    </span>
+                  ))}
+                </div>
+              );
+            },
+          },
           { key: 'description', header: 'Descrição', sortable: true },
           { key: 'priority', header: 'Prioridade', sortable: true,
             render: (row) => (
