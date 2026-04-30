@@ -12,9 +12,11 @@ import {
   FileOutput,
   ChevronDown,
   ChevronRight,
+  CircleDot,
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useContract, canSeeServiceMenu, canSeeServiceOrderMenu } from './ContractProvider';
+import { useFlowStatuses } from './hooks/useFlowStatuses';
 
 interface MenuItem {
   to: string;
@@ -40,6 +42,7 @@ export default function Layout() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const { user, logout } = useAuth();
   const { contracts, selectedContract, setSelectedContractId } = useContract();
+  const flowStatuses = useFlowStatuses();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -85,6 +88,16 @@ export default function Layout() {
       ],
     });
     if (canSeeServiceOrderMenu(selectedContract)) {
+      const statusMenuItems: (MenuItem | MenuGroup)[] = [
+        { to: '/ordens-de-servico/manutencao/gerar', icon: FilePlus, label: 'Gerar OS' },
+      ];
+      for (const status of flowStatuses) {
+        statusMenuItems.push({
+          to: `/ordens-de-servico/manutencao/status/${status.code}`,
+          icon: CircleDot,
+          label: status.description,
+        });
+      }
       nav.push({
         key: 'ordens-de-servico',
         icon: FileOutput,
@@ -94,9 +107,7 @@ export default function Layout() {
             key: 'os-manutencao',
             icon: Wrench,
             label: 'Manutenção',
-            children: [
-              { to: '/ordens-de-servico/manutencao/gerar', icon: FilePlus, label: 'Gerar OS' },
-            ],
+            children: statusMenuItems,
           },
         ],
       });

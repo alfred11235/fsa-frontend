@@ -2,6 +2,7 @@ import { apiClient } from './client';
 
 export const userFlowApi = {
   getFlows: () => apiClient.get('/user-flows'),
+  getFlowByCode: (code: string) => apiClient.get(`/user-flows/by-code/${code}`),
   startFlow: (flowCode: string, targetModule: string, targetEntity: string, targetId: string, executedBy?: string) =>
     apiClient.post('/user-flows/start', { flowCode, targetModule, targetEntity, targetId, executedBy }),
   executeAction: (actionId: number, targetModule: string, targetEntity: string, targetId: string, executedBy?: string, observation?: string) =>
