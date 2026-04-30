@@ -6,6 +6,8 @@ export const serviceOrdersApi = {
   getOrder: (id: number) => apiClient.get(`/service-orders/${id}`),
   getOrdersByContract: (contractId: number) =>
     apiClient.get(`/service-orders/by-contract/${contractId}`),
+  assignWorker: (id: number, assignedTo: number) =>
+    apiClient.patch(`/service-orders/${id}/assign`, { assignedTo }),
   createOrder: (data: Record<string, unknown>) =>
     apiClient.post('/service-orders', data),
   getCategories: () => apiClient.get('/service-orders/catalog/categories'),

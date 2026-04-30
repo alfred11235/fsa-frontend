@@ -5,6 +5,9 @@ import { DataTable, Modal, Button } from '@fsa/shared-ui';
 import { useContract } from '../ContractProvider';
 import { useAuth } from '../AuthProvider';
 import { ClipboardList, Play, AlertTriangle } from 'lucide-react';
+import { getActionCustomization } from '../config/flowActionCustomizations';
+// Register all action customizations (side-effect imports)
+import '../config/despacharCustomization';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +70,7 @@ export default function ServiceOrdersByStatusPage() {
   } | null>(null);
   const [executing, setExecuting] = useState(false);
   const [observation, setObservation] = useState('');
+  const [extraData, setExtraData] = useState<Record<string, unknown>>({});
 
   // Load flow graph
   useEffect(() => {
@@ -145,9 +149,10 @@ export default function ServiceOrdersByStatusPage() {
     });
   }, [actions, currentStatus, userRoleId, user]);
 
-  // Execute an action on a service order
-  const handleExecuteAction = useCallback(async () => {
+  // Execute an action on a service order (called by default modal or custom modal)
+  const handleExecuteAction = useCallback(async (obs?: string, extra?: Record<string, unknown>) => {
     if (!actionModal || !user) return;
+    const mergedExtra = extra ?? extraData;
     setExecuting(true);
     try {
       await userFlowApi.executeAction(
@@ -156,10 +161,19 @@ export default function ServiceOrdersByStatusPage() {
         'ServiceOrder',
         String(actionModal.order.id),
         user.name,
-        observation || undefined
+        obs ?? (observation || undefined)
       );
+      // Run afterExecute hook if the action has a customization
+      const customization = getActionCustomization(actionModal.action.code);
+      if (customization?.afterExecute) {
+        await customization.afterExecute({
+          serviceOrderId: actionModal.order.id,
+          extraData: mergedExtra,
+        });
+      }
       setActionModal(null);
       setObservation('');
+      setExtraData({});
       loadOrders();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -167,7 +181,7 @@ export default function ServiceOrdersByStatusPage() {
     } finally {
       setExecuting(false);
     }
-  }, [actionModal, user, observation, loadOrders]);
+  }, [actionModal, user, observation, extraData, loadOrders]);
 
   // Build row actions (one button per available action)
   const rowActions = useMemo(() => {
@@ -242,45 +256,60 @@ export default function ServiceOrdersByStatusPage() {
       />
 
       {/* Action confirmation modal */}
-      {actionModal && (
-        <Modal
-          open
-          onClose={() => { setActionModal(null); setObservation(''); }}
-          title={`${actionModal.action.description} — OS ${actionModal.order.code}`}
-          className="max-w-md"
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Deseja executar a ação <strong>{actionModal.action.description}</strong> na
-              ordem de serviço <strong>{actionModal.order.code}</strong>?
-            </p>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Observação (opcional)
-              </label>
-              <textarea
-                value={observation}
-                onChange={(e) => setObservation(e.target.value)}
-                rows={3}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="Adicione uma observação..."
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => { setActionModal(null); setObservation(''); }}
-                disabled={executing}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleExecuteAction} disabled={executing}>
-                {executing ? 'Executando...' : 'Confirmar'}
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      {actionModal && (() => {
+        const customization = getActionCustomization(actionModal.action.code);
+        const closeModal = () => { setActionModal(null); setObservation(''); setExtraData({}); };
+
+        return (
+          <Modal
+            open
+            onClose={closeModal}
+            title={`${actionModal.action.description} — OS ${actionModal.order.code}`}
+            className="max-w-md"
+          >
+            {customization?.renderModal ? (
+              customization.renderModal({
+                serviceOrderId: actionModal.order.id,
+                serviceOrderCode: actionModal.order.code,
+                actionDescription: actionModal.action.description,
+                contractId: selectedContract!.id,
+                onConfirm: (obs, extra) => handleExecuteAction(obs, extra),
+                onCancel: closeModal,
+                executing,
+                extraData,
+                setExtraData,
+              })
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Deseja executar a ação <strong>{actionModal.action.description}</strong> na
+                  ordem de serviço <strong>{actionModal.order.code}</strong>?
+                </p>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Observação (opcional)
+                  </label>
+                  <textarea
+                    value={observation}
+                    onChange={(e) => setObservation(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Adicione uma observação..."
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={closeModal} disabled={executing}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={() => handleExecuteAction()} disabled={executing}>
+                    {executing ? 'Executando...' : 'Confirmar'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
     </>
   );
 }
