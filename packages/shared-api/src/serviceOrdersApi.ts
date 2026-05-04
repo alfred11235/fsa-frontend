@@ -35,4 +35,9 @@ export const serviceOrdersApi = {
     apiClient.post('/occurrences/generate-service-orders', { occurrenceIds, contractId }),
   generateAndDispatch: (occurrenceIds: number[], contractId: number, assignedTo: number) =>
     apiClient.post('/occurrences/generate-and-dispatch', { occurrenceIds, contractId, assignedTo }),
+
+  // Detail
+  getOrderDetail: (id: number) => apiClient.get(`/service-orders/${id}/detail`),
+  approveTask: (taskId: number, isApproved: boolean | null) =>
+    apiClient.patch(`/service-orders/tasks/${taskId}/approve`, { isApproved }),
 };

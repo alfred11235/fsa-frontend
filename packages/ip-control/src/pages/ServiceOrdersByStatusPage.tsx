@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { serviceOrdersApi, userFlowApi, userControlApi } from '@fsa/shared-api';
 import { DataTable, Modal, Button } from '@fsa/shared-ui';
 import { useContract } from '../ContractProvider';
 import { useAuth } from '../AuthProvider';
-import { ClipboardList, Play, AlertTriangle } from 'lucide-react';
+import { ClipboardList, Play, AlertTriangle, Eye } from 'lucide-react';
 import { getActionCustomization } from '../config/flowActionCustomizations';
 // Register all action customizations (side-effect imports)
 import '../config/despacharCustomization';
@@ -53,6 +53,7 @@ interface FlowStatus {
 
 export default function ServiceOrdersByStatusPage() {
   const { statusCode } = useParams<{ statusCode: string }>();
+  const navigate = useNavigate();
   const { selectedContract } = useContract();
   const { user } = useAuth();
 
@@ -185,7 +186,15 @@ export default function ServiceOrdersByStatusPage() {
 
   // Build row actions (one button per available action)
   const rowActions = useMemo(() => {
-    return availableActions.map((action) => ({
+    const detailAction = {
+      icon: <Eye size={14} />,
+      label: 'Detalhes',
+      onClick: (row: ServiceOrderRow) => {
+        navigate(`/ordens-de-servico/${row.id}/detalhe`);
+      },
+      variant: 'info' as const,
+    };
+    const flowActions = availableActions.map((action) => ({
       icon: <Play size={14} />,
       label: action.description,
       onClick: (row: ServiceOrderRow) => {
@@ -194,7 +203,8 @@ export default function ServiceOrdersByStatusPage() {
       },
       variant: action.code === 'Cancelar' ? 'danger' as const : 'info' as const,
     }));
-  }, [availableActions]);
+    return [detailAction, ...flowActions];
+  }, [availableActions, navigate]);
 
   const pageTitle = currentStatus?.description ?? statusCode ?? 'Ordens de Serviço';
 

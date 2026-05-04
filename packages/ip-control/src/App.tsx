@@ -7,6 +7,7 @@ import OpenMaintenanceRequestPage from './pages/OpenMaintenanceRequestPage';
 import OccurrenceListPage from './pages/OccurrenceListPage';
 import GenerateServiceOrderPage from './pages/GenerateServiceOrderPage';
 import ServiceOrdersByStatusPage from './pages/ServiceOrdersByStatusPage';
+import ServiceOrderDetailPage from './pages/ServiceOrderDetailPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="solicitacoes/manutencao/lista" element={<OccurrenceListPage />} />
         <Route path="ordens-de-servico/manutencao/gerar" element={<GenerateServiceOrderPage />} />
         <Route path="ordens-de-servico/manutencao/status/:statusCode" element={<ServiceOrdersByStatusPage />} />
+        <Route path="ordens-de-servico/:id/detalhe" element={<ServiceOrderDetailPage />} />
       </Route>
     </Routes>
   );
