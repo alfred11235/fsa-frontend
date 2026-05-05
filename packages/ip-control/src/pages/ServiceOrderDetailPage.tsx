@@ -105,6 +105,9 @@ interface FlowStatus {
 interface GeoPoint {
   id: number;
   basement: string;
+  address: string | null;
+  neighborhood: string | null;
+  zone: string | null;
   latitude: number;
   longitude: number;
 }
@@ -223,7 +226,7 @@ export default function ServiceOrderDetailPage() {
           if (r?.data) {
             const d = r.data;
             if (d.lat != null && d.lng != null) {
-              points.push({ id: d.id, basement: d.basement ?? `P${d.id}`, latitude: d.lat, longitude: d.lng });
+              points.push({ id: d.id, basement: d.basement ?? `P${d.id}`, address: d.address ?? null, neighborhood: d.neighborhood ?? null, zone: d.zone ?? null, latitude: d.lat, longitude: d.lng });
             }
           }
         }
@@ -257,6 +260,13 @@ export default function ServiceOrderDetailPage() {
   // ─── Computed ─────────────────────────────────────────────────────────────
 
   const isApprovedEditable = currentStatusCode === 'CONCLUIDA' || currentStatusCode === 'PENDENTE';
+
+  // Map target entityId → GeoPoint for quick lookup in task columns
+  const geoPointByEntityId = useMemo(() => {
+    const map = new Map<number, GeoPoint>();
+    for (const gp of geoPoints) map.set(gp.id, gp);
+    return map;
+  }, [geoPoints]);
 
   const userRoleId = useMemo(() => {
     if (!user || !selectedContract) return null;
@@ -442,10 +452,29 @@ export default function ServiceOrderDetailPage() {
         : <span className="text-gray-400">—</span>,
     },
     { key: 'description', header: 'Descricao', sortable: true },
-    { key: 'target', header: 'Alvo', sortable: false,
-      render: (row: TaskRow) => row.target
-        ? <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-600">{row.target.entityType} #{row.target.entityId}</span>
-        : <span className="text-gray-400">—</span>,
+    { key: 'basement', header: 'Poste', sortable: true,
+      render: (row: TaskRow) => {
+        const gp = row.target ? geoPointByEntityId.get(row.target.entityId) : null;
+        return gp ? <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-600">{gp.basement}</span> : <span className="text-gray-400">—</span>;
+      },
+    },
+    { key: 'address', header: 'Endereco', sortable: true,
+      render: (row: TaskRow) => {
+        const gp = row.target ? geoPointByEntityId.get(row.target.entityId) : null;
+        return gp?.address ?? '—';
+      },
+    },
+    { key: 'neighborhood', header: 'Bairro', sortable: true, visible: false,
+      render: (row: TaskRow) => {
+        const gp = row.target ? geoPointByEntityId.get(row.target.entityId) : null;
+        return gp?.neighborhood ?? '—';
+      },
+    },
+    { key: 'zone', header: 'Zona', sortable: true, visible: false,
+      render: (row: TaskRow) => {
+        const gp = row.target ? geoPointByEntityId.get(row.target.entityId) : null;
+        return gp?.zone ?? '—';
+      },
     },
     { key: 'createdAt', header: 'Criado em', sortable: true,
       render: (row: TaskRow) => row.createdAt ? new Date(row.createdAt).toLocaleString('pt-BR') : '—',
@@ -458,7 +487,7 @@ export default function ServiceOrderDetailPage() {
         ? <ApprovalToggle value={row.isApproved} onChange={(val) => handleTaskApproval(row.id, val)} />
         : <ApprovalBadge value={row.isApproved} />,
     },
-  ], [isApprovedEditable, handleTaskApproval]);
+  ], [isApprovedEditable, handleTaskApproval, geoPointByEntityId]);
 
   const taskRowActions = useMemo(() => [
     { icon: <Eye size={14} />, label: 'Detalhes', onClick: (row: TaskRow) => { setDetailTask(row); setActPage(0); }, variant: 'info' as const },
