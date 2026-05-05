@@ -16,6 +16,7 @@ import {
   MinusCircle,
   ClipboardList,
   Eye,
+  Camera,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -47,6 +48,14 @@ interface TaskAction {
   [key: string]: unknown;
 }
 
+interface TaskPicture {
+  id: number;
+  url: string;
+  description: string | null;
+  pictureTypeCode: string | null;
+  pictureTypeDescription: string | null;
+}
+
 interface TaskRow {
   id: number;
   code: string;
@@ -58,6 +67,7 @@ interface TaskRow {
   isApproved: boolean | null;
   target: TargetRef | null;
   actions: TaskAction[];
+  pictures: TaskPicture[];
   createdAt: string | null;
   updatedAt: string | null;
   [key: string]: unknown;
@@ -635,6 +645,9 @@ export default function ServiceOrderDetailPage() {
               onSearch={() => {}}
             />
 
+            {/* Task pictures */}
+            <TaskPicturesSection pictures={detailTask.pictures ?? []} />
+
             <div className="flex justify-end">
               <Button variant="outline" onClick={() => setDetailTask(null)}>Fechar</Button>
             </div>
@@ -700,6 +713,67 @@ function MapFlyTo({ center }: { center: [number, number] }) {
   }, [isReady, center, getAdapter]);
 
   return null;
+}
+
+// ─── Task Pictures Section ────────────────────────────────────────────────────
+
+function TaskPicturesSection({ pictures }: { pictures: TaskPicture[] }) {
+  const before = pictures.filter((p) => p.pictureTypeCode === 'FOTOS_ANTES');
+  const after = pictures.filter((p) => p.pictureTypeCode === 'FOTOS_DEPOIS');
+  const other = pictures.filter((p) => p.pictureTypeCode !== 'FOTOS_ANTES' && p.pictureTypeCode !== 'FOTOS_DEPOIS');
+
+  if (pictures.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-400">
+        <Camera size={16} /> Nenhuma foto registrada para esta tarefa.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {before.length > 0 && (
+        <PictureGroup title="Fotos antes" pictures={before} />
+      )}
+      {after.length > 0 && (
+        <PictureGroup title="Fotos depois" pictures={after} />
+      )}
+      {other.length > 0 && (
+        <PictureGroup title="Outras fotos" pictures={other} />
+      )}
+    </div>
+  );
+}
+
+function PictureGroup({ title, pictures }: { title: string; pictures: TaskPicture[] }) {
+  const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
+
+  return (
+    <div>
+      <h4 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+        <Camera size={14} className="text-gray-500" /> {title} ({pictures.length})
+      </h4>
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
+        {pictures.map((pic) => (
+          <button key={pic.id} onClick={() => setSelectedUrl(pic.url)}
+            className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100 hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400">
+            <img src={pic.url} alt={pic.description ?? ''} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+            {pic.description && (
+              <div className="absolute inset-x-0 bottom-0 bg-black/50 px-1 py-0.5 text-[10px] text-white truncate">
+                {pic.description}
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+      {/* Lightbox */}
+      {selectedUrl && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80" onClick={() => setSelectedUrl(null)}>
+          <img src={selectedUrl} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Approval Components ──────────────────────────────────────────────────────

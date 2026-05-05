@@ -42,4 +42,12 @@ export const serviceOrdersApi = {
     apiClient.patch(`/service-orders/tasks/${taskId}/approve`, { isApproved }),
   approveTaskAction: (actionId: number, isApproved: boolean | null) =>
     apiClient.patch(`/service-orders/task-actions/${actionId}/approve`, { isApproved }),
+
+  // Task pictures
+  getTaskPictures: (taskId: number) =>
+    apiClient.get(`/service-orders/tasks/${taskId}/pictures`),
+  addTaskPicture: (taskId: number, data: { url: string; description?: string; pictureTypeCode: string }) =>
+    apiClient.post(`/service-orders/tasks/${taskId}/pictures`, data),
+  deleteTaskPicture: (pictureId: number) =>
+    apiClient.delete(`/service-orders/tasks/pictures/${pictureId}`),
 };
