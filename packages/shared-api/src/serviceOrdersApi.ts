@@ -40,4 +40,6 @@ export const serviceOrdersApi = {
   getOrderDetail: (id: number) => apiClient.get(`/service-orders/${id}/detail`),
   approveTask: (taskId: number, isApproved: boolean | null) =>
     apiClient.patch(`/service-orders/tasks/${taskId}/approve`, { isApproved }),
+  approveTaskAction: (actionId: number, isApproved: boolean | null) =>
+    apiClient.patch(`/service-orders/task-actions/${actionId}/approve`, { isApproved }),
 };
