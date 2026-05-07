@@ -161,7 +161,7 @@ export default function ServiceOrdersByStatusPage() {
         'service-orders',
         'ServiceOrder',
         String(actionModal.order.id),
-        user.name,
+        String(user.id),
         obs ?? (observation || undefined)
       );
       // Run afterExecute hook if the action has a customization

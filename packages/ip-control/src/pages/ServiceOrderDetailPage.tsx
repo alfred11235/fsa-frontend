@@ -17,6 +17,8 @@ import {
   ClipboardList,
   Eye,
   Camera,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -38,6 +40,7 @@ interface TargetRef {
 
 interface TaskAction {
   id: number;
+  actionType: string | null;
   description: string | null;
   executedBy: string | null;
   executedAt: string | null;
@@ -358,7 +361,7 @@ export default function ServiceOrderDetailPage() {
     try {
       await userFlowApi.executeAction(
         actionModal.action.id, 'service-orders', 'ServiceOrder',
-        String(order.id), user.name, obs ?? (observation || undefined),
+        String(order.id), String(user.id), obs ?? (observation || undefined),
       );
       const customization = getActionCustomization(actionModal.action.code);
       if (customization?.afterExecute) {
@@ -496,6 +499,7 @@ export default function ServiceOrderDetailPage() {
   // ─── Action columns for DataTable (in popup) ─────────────────────────────
 
   const actionColumns = useMemo(() => [
+    { key: 'actionType', header: 'Tipo', sortable: true },
     { key: 'description', header: 'Descricao', sortable: true },
     { key: 'executedBy', header: 'Executado por', sortable: true },
     { key: 'executedAt', header: 'Data', sortable: true,
@@ -637,8 +641,8 @@ export default function ServiceOrderDetailPage() {
       {detailTask && (
         <Modal open onClose={() => setDetailTask(null)}
           title={`Tarefa ${detailTask.code}${detailTask.occurrenceProtocol ? ` — ${detailTask.occurrenceProtocol}` : ''}`}
-          className="max-w-6xl">
-          <div className="space-y-4">
+          className="max-w-5xl">
+          <div className="max-h-[75vh] space-y-3 overflow-y-auto">
             {/* Task info */}
             <div className="flex items-center gap-4 text-sm">
               <div><span className="text-xs text-gray-500">Descricao:</span> <span className="text-gray-700">{detailTask.description || '—'}</span></div>
@@ -648,13 +652,6 @@ export default function ServiceOrderDetailPage() {
                   ? <ApprovalToggle value={detailTask.isApproved} onChange={(val) => handleTaskApproval(detailTask.id, val)} />
                   : <ApprovalBadge value={detailTask.isApproved} />}
               </div>
-              {detailTask.target && (
-                <div><span className="text-xs text-gray-500">Alvo:</span>{' '}
-                  <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-600">
-                    {detailTask.target.entityType} #{detailTask.target.entityId}
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Task actions DataTable */}
@@ -674,10 +671,10 @@ export default function ServiceOrderDetailPage() {
               onSearch={() => {}}
             />
 
-            {/* Task pictures */}
+            {/* Task pictures — two carousels side by side */}
             <TaskPicturesSection pictures={detailTask.pictures ?? []} />
 
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-2">
               <Button variant="outline" onClick={() => setDetailTask(null)}>Fechar</Button>
             </div>
           </div>
@@ -749,52 +746,63 @@ function MapFlyTo({ center }: { center: [number, number] }) {
 function TaskPicturesSection({ pictures }: { pictures: TaskPicture[] }) {
   const before = pictures.filter((p) => p.pictureTypeCode === 'FOTOS_ANTES');
   const after = pictures.filter((p) => p.pictureTypeCode === 'FOTOS_DEPOIS');
-  const other = pictures.filter((p) => p.pictureTypeCode !== 'FOTOS_ANTES' && p.pictureTypeCode !== 'FOTOS_DEPOIS');
 
   if (pictures.length === 0) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-400">
+      <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3 text-sm text-gray-400">
         <Camera size={16} /> Nenhuma foto registrada para esta tarefa.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {before.length > 0 && (
-        <PictureGroup title="Fotos antes" pictures={before} />
-      )}
-      {after.length > 0 && (
-        <PictureGroup title="Fotos depois" pictures={after} />
-      )}
-      {other.length > 0 && (
-        <PictureGroup title="Outras fotos" pictures={other} />
-      )}
+    <div className="grid grid-cols-2 gap-3">
+      <PictureCarousel title="Fotos antes" pictures={before} />
+      <PictureCarousel title="Fotos depois" pictures={after} />
     </div>
   );
 }
 
-function PictureGroup({ title, pictures }: { title: string; pictures: TaskPicture[] }) {
+function PictureCarousel({ title, pictures }: { title: string; pictures: TaskPicture[] }) {
+  const [index, setIndex] = useState(0);
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
 
+  const current = pictures[index];
+  const hasPrev = index > 0;
+  const hasNext = index < pictures.length - 1;
+
   return (
-    <div>
-      <h4 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-        <Camera size={14} className="text-gray-500" /> {title} ({pictures.length})
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+      <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-600">
+        <Camera size={12} /> {title} ({pictures.length})
       </h4>
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
-        {pictures.map((pic) => (
-          <button key={pic.id} onClick={() => setSelectedUrl(pic.url)}
-            className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100 hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400">
-            <img src={pic.url} alt={pic.description ?? ''} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-            {pic.description && (
-              <div className="absolute inset-x-0 bottom-0 bg-black/50 px-1 py-0.5 text-[10px] text-white truncate">
-                {pic.description}
-              </div>
-            )}
+      {pictures.length === 0 ? (
+        <div className="flex h-32 items-center justify-center text-xs text-gray-400">Sem fotos</div>
+      ) : (
+        <div className="relative">
+          <button onClick={() => setSelectedUrl(current.url)}
+            className="block w-full overflow-hidden rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-400">
+            <img src={current.url} alt={current.description ?? ''} className="h-36 w-full object-contain" />
           </button>
-        ))}
-      </div>
+          {current.description && (
+            <p className="mt-1 truncate text-[10px] text-gray-500">{current.description}</p>
+          )}
+          {/* Navigation */}
+          {pictures.length > 1 && (
+            <div className="mt-1.5 flex items-center justify-center gap-2">
+              <button disabled={!hasPrev} onClick={() => setIndex(index - 1)}
+                className="rounded p-0.5 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-transparent">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-[10px] text-gray-500">{index + 1} / {pictures.length}</span>
+              <button disabled={!hasNext} onClick={() => setIndex(index + 1)}
+                className="rounded p-0.5 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-transparent">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       {/* Lightbox */}
       {selectedUrl && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80" onClick={() => setSelectedUrl(null)}>
