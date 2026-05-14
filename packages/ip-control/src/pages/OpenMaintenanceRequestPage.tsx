@@ -102,7 +102,15 @@ export default function OpenMaintenanceRequestPage() {
     if (step === 2) {
       return data.categoryId !== null && (!data.priority || data.priorityReason.trim().length > 0);
     }
-    return data.address.trim().length > 0;
+    // Step 3: the address must have been resolved to actual coordinates, either by
+    // picking one of the Nominatim suggestions or by clicking on the map (which
+    // reverse-geocodes). A bare typed string with no coords would create an
+    // occurrence the field crew can't navigate to.
+    return (
+      data.address.trim().length > 0 &&
+      data.latitude != null &&
+      data.longitude != null
+    );
   };
 
   const handleSubmit = async () => {
@@ -500,7 +508,9 @@ function StepAddressInner({
 
   const handleAddressInput = useCallback((value: string) => {
     setAddressQuery(value);
-    update({ address: value });
+    // Typing invalidates any previously resolved coordinates — the user must
+    // pick a Nominatim suggestion (or click on the map) to set them again.
+    update({ address: value, latitude: null, longitude: null });
     searchAddress(value);
   }, [update, searchAddress]);
 
