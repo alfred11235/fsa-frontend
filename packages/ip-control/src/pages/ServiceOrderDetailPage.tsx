@@ -38,6 +38,13 @@ interface TargetRef {
   entityType: string;
 }
 
+interface ActionObservation {
+  id: number;
+  observations: string | null;
+  audioUrl: string | null;
+  createdAt: string | null;
+}
+
 interface TaskAction {
   id: number;
   actionType: string | null;
@@ -48,6 +55,7 @@ interface TaskAction {
   componentModule: string | null;
   componentEntity: string | null;
   componentId: number | null;
+  observation: ActionObservation | null;
   [key: string]: unknown;
 }
 
@@ -59,6 +67,11 @@ interface TaskPicture {
   pictureTypeDescription: string | null;
 }
 
+interface TaskStatusRef {
+  id: number;
+  description: string;
+}
+
 interface TaskRow {
   id: number;
   code: string;
@@ -68,6 +81,8 @@ interface TaskRow {
   occurrenceProtocol: string | null;
   targetId: number | null;
   isApproved: boolean | null;
+  taskStatus: TaskStatusRef | null;
+  observations: string | null;
   target: TargetRef | null;
   actions: TaskAction[];
   pictures: TaskPicture[];
@@ -122,6 +137,7 @@ interface LightingAssetData {
   lampType: { type: string } | null;
   lampPower: { value: number } | null;
   luminaryType: { type: string } | null;
+  luminarySupportType: { type: string } | null;
   luminarySupportArmType: { armType: string } | null;
   manufacturer: { name: string } | null;
   manufacturerModel: { model: string } | null;
@@ -485,6 +501,32 @@ export default function ServiceOrderDetailPage() {
     { key: 'updatedAt', header: 'Atualizado em', sortable: true, visible: false,
       render: (row: TaskRow) => row.updatedAt ? new Date(row.updatedAt).toLocaleString('pt-BR') : '—',
     },
+    { key: 'taskStatus', header: 'Situacao', sortable: true,
+      render: (row: TaskRow) => {
+        if (!row.taskStatus) return <span className="text-gray-400">—</span>;
+        const isSuccess = row.taskStatus.description.toLowerCase().startsWith('atendimento');
+        const cls = isSuccess
+          ? 'bg-emerald-50 text-emerald-700'
+          : 'bg-rose-50 text-rose-700';
+        return (
+          <span className={`inline-block max-w-[18rem] truncate rounded px-1.5 py-0.5 text-xs ${cls}`}
+                title={row.taskStatus.description}>
+            {row.taskStatus.description}
+          </span>
+        );
+      },
+    },
+    { key: 'observations', header: 'Observacoes', sortable: false,
+      render: (row: TaskRow) => {
+        const obs = (row.observations ?? '').trim();
+        if (!obs) return <span className="text-gray-400">—</span>;
+        return (
+          <span className="block max-w-[20rem] truncate text-gray-700" title={obs}>
+            {obs}
+          </span>
+        );
+      },
+    },
     { key: 'isApproved', header: 'Aprovacao', sortable: true,
       render: (row: TaskRow) => isApprovedEditable
         ? <ApprovalToggle value={row.isApproved} onChange={(val) => handleTaskApproval(row.id, val)} />
@@ -501,6 +543,24 @@ export default function ServiceOrderDetailPage() {
   const actionColumns = useMemo(() => [
     { key: 'actionType', header: 'Tipo', sortable: true },
     { key: 'description', header: 'Descricao', sortable: true },
+    { key: 'observation', header: 'Observacoes', sortable: false,
+      render: (row: TaskAction) => {
+        const text = (row.observation?.observations ?? '').trim();
+        if (!text) return <span className="text-gray-400">—</span>;
+        return (
+          <span className="block max-w-[16rem] truncate" title={text}>
+            {text}
+          </span>
+        );
+      },
+    },
+    { key: 'audio', header: 'Audio', sortable: false,
+      render: (row: TaskAction) => {
+        const url = (row.observation?.audioUrl ?? '').trim();
+        if (!url) return <span className="text-gray-400">—</span>;
+        return <audio controls preload="none" src={url} className="h-7 w-48" />;
+      },
+    },
     { key: 'executedBy', header: 'Executado por', sortable: true },
     { key: 'executedAt', header: 'Data', sortable: true,
       render: (row: TaskAction) => row.executedAt ? new Date(row.executedAt).toLocaleString('pt-BR') : '—',
@@ -522,6 +582,9 @@ export default function ServiceOrderDetailPage() {
     },
     { key: 'luminaryType', header: 'Luminaria', sortable: false,
       render: (row: TaskAction) => lightingAssets.get(row.componentId ?? 0)?.luminaryType?.type ?? '—',
+    },
+    { key: 'luminarySupportType', header: 'Suporte', sortable: false,
+      render: (row: TaskAction) => lightingAssets.get(row.componentId ?? 0)?.luminarySupportType?.type ?? '—',
     },
     { key: 'armType', header: 'Braco', sortable: false,
       render: (row: TaskAction) => lightingAssets.get(row.componentId ?? 0)?.luminarySupportArmType?.armType ?? '—',
@@ -644,8 +707,22 @@ export default function ServiceOrderDetailPage() {
           className="max-w-5xl">
           <div className="max-h-[75vh] space-y-3 overflow-y-auto">
             {/* Task info */}
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
               <div><span className="text-xs text-gray-500">Descricao:</span> <span className="text-gray-700">{detailTask.description || '—'}</span></div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-500">Situacao:</span>
+                {detailTask.taskStatus ? (() => {
+                  const isSuccess = detailTask.taskStatus.description.toLowerCase().startsWith('atendimento');
+                  const cls = isSuccess
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-rose-50 text-rose-700';
+                  return (
+                    <span className={`rounded px-1.5 py-0.5 text-xs ${cls}`}>
+                      {detailTask.taskStatus.description}
+                    </span>
+                  );
+                })() : <span className="text-gray-400">—</span>}
+              </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-gray-500">Aprovacao:</span>
                 {isApprovedEditable
@@ -653,6 +730,13 @@ export default function ServiceOrderDetailPage() {
                   : <ApprovalBadge value={detailTask.isApproved} />}
               </div>
             </div>
+
+            {(detailTask.observations ?? '').trim() ? (
+              <div className="rounded-md bg-gray-50 px-3 py-2 text-sm">
+                <span className="text-xs text-gray-500">Observacoes:</span>{' '}
+                <span className="whitespace-pre-wrap text-gray-700">{detailTask.observations}</span>
+              </div>
+            ) : null}
 
             {/* Task actions DataTable */}
             {loadingAssets && (
